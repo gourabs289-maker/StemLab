@@ -1,1 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Microbiology</title>
+    <link rel="stylesheet" href="../../css/retro-theme.css">
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="../../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: var(--alert-red);">MICROBIOLOGY // PATHOGEN GROWTH MATRIX</h1>
+            <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Bio Hub</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--alert-red);">
+            <h2 class="panel-title" style="color: var(--alert-red); border-left-color: var(--alert-red);">01 // SMART SEQUENCE ISOLATION</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                <strong>SMART SEARCH ACTIVE:</strong> Type any common pathogen name (e.g., SARS-CoV, E. coli) OR an exact Accession Code in the box below to isolate its sequence data.
+            </p>
+            
+            <div class="input-group" style="margin-bottom: 20px;">
+                <button id="fetch-micro-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; border-color: var(--alert-red); color: var(--alert-red);">TRIGGER SMART SEARCH</button>
+                <input type="text" id="micro-input" value="SARS-CoV" style="width: 100%; text-align: center; font-size: 1.1rem; padding: 10px;" placeholder="Enter pathogen name or code...">
+            </div>
+            
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Accession Code</label>
+                    <input type="text" id="micro-code" readonly placeholder="Awaiting Search...">
+                </div>
+                <div class="input-group">
+                    <label>Organism Origin</label>
+                    <input type="text" id="micro-organism" readonly placeholder="Awaiting Search...">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 10px;">
+                <label>Sequence Mass (Da)</label>
+                <input type="text" id="micro-mass" readonly placeholder="Awaiting Search...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title" style="color: var(--alert-red); border-left-color: var(--alert-red);">02 // GROWTH KINETICS & EQUATION SCANNER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan laboratory diagrams to calculate bacterial generation time or exponential decay constants.
+            </p>
+            <math-field id="micro-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                N_t = N_0 \times 2^g
+            </math-field>
+            <div class="upload-container">
+                <label class="upload-zone-label" style="color: var(--alert-red);">
+                    <span>[+] UPLOAD / SCAN MICROBIOLOGY DIAGRAM</span>
+                    <input type="file" id="micro-ocr" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="micro-status" class="status-message" style="margin-top: 10px; color: var(--alert-red);"></div>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('fetch-micro-btn').addEventListener('click', async () => {
+            const query = document.getElementById('micro-input').value;
+            const codeBox = document.getElementById('micro-code');
+            const organismBox = document.getElementById('micro-organism');
+            const massBox = document.getElementById('micro-mass');
+            const btn = document.getElementById('fetch-micro-btn');
+            
+            btn.textContent = "SEARCHING DATABASE...";
+            codeBox.value = "Scanning...";
+            organismBox.value = "Scanning...";
+            massBox.value = "Scanning...";
+            
+            const data = await window.StemAPI.fetchProteinData(query);
+            
+            if (data && data.id) {
+                codeBox.value = data.id;
+                organismBox.value = data.organism.name.scientific || data.organism.name.common || "Unknown";
+                massBox.value = data.sequence.mass + " Da";
+                btn.textContent = "PATHOGEN ISOLATED";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                codeBox.value = "ERR: Not Found";
+                organismBox.value = "ERR: Not Found";
+                massBox.value = "ERR: Not Found";
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        document.getElementById('micro-ocr').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const statusText = document.getElementById('micro-status');
+            const mathField = document.getElementById('micro-formula');
+            statusText.textContent = "SYS_STATUS: TRANSMITTING TO OCR ENGINE...";
+            statusText.style.color = "var(--accent-amber)";
+            const latexString = await window.StemAPI.scanMathImage(file);
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: PATHOGEN KINETICS PARSED.";
+                statusText.style.color = "var(--accent-neon)";
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
 
