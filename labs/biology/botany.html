@@ -1,1 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Botany</title>
+    <link rel="stylesheet" href="../../css/retro-theme.css">
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="../../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: var(--accent-neon);">BOTANY // PLANT GENOMICS & ECO-SYSTEMS</h1>
+            <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Bio Hub</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-neon);">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">01 // SMART SEQUENCE ISOLATION</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                <strong>SMART SEARCH ACTIVE:</strong> Type any common plant protein (e.g., RuBisCO) OR an exact Accession Code in the box below to isolate its genomic data.
+            </p>
+            
+            <div class="input-group" style="margin-bottom: 20px;">
+                <button id="fetch-botany-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px;">TRIGGER SMART SEARCH</button>
+                <input type="text" id="botany-input" value="RuBisCO" style="width: 100%; text-align: center; font-size: 1.1rem; padding: 10px;" placeholder="Enter botanical name or code...">
+            </div>
+            
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Accession Code</label>
+                    <input type="text" id="botany-code" readonly placeholder="Awaiting Search...">
+                </div>
+                <div class="input-group">
+                    <label>Botanical Origin</label>
+                    <input type="text" id="botany-organism" readonly placeholder="Awaiting Search...">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 10px;">
+                <label>Sequence Length (Residues)</label>
+                <input type="text" id="botany-length" readonly placeholder="Awaiting Search...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">02 // PHOTOSYNTHETIC KINETICS & SCANNER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan diagrams to process transpiration rates or photosynthetic stoichiometry.
+            </p>
+            <math-field id="botany-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                6CO_2 + 6H_2O \rightarrow C_6H_{12}O_6 + 6O_2
+            </math-field>
+            <div class="upload-container">
+                <label class="upload-zone-label" style="color: var(--accent-neon);">
+                    <span>[+] UPLOAD / SCAN BOTANICAL DIAGRAM</span>
+                    <input type="file" id="botany-ocr" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="botany-status" class="status-message" style="margin-top: 10px; color: var(--accent-neon);"></div>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('fetch-botany-btn').addEventListener('click', async () => {
+            const query = document.getElementById('botany-input').value;
+            const codeBox = document.getElementById('botany-code');
+            const organismBox = document.getElementById('botany-organism');
+            const lengthBox = document.getElementById('botany-length');
+            const btn = document.getElementById('fetch-botany-btn');
+            
+            btn.textContent = "SEARCHING DATABASE...";
+            codeBox.value = "Scanning...";
+            organismBox.value = "Scanning...";
+            lengthBox.value = "Scanning...";
+            
+            const data = await window.StemAPI.fetchProteinData(query);
+            
+            if (data && data.id) {
+                codeBox.value = data.id;
+                organismBox.value = data.organism.name.scientific || data.organism.name.common || "Unknown";
+                lengthBox.value = data.sequence.length;
+                btn.textContent = "FLORA ISOLATED";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                codeBox.value = "ERR: Not Found";
+                organismBox.value = "ERR: Not Found";
+                lengthBox.value = "ERR: Not Found";
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        document.getElementById('botany-ocr').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const statusText = document.getElementById('botany-status');
+            const mathField = document.getElementById('botany-formula');
+            statusText.textContent = "SYS_STATUS: TRANSMITTING TO OCR ENGINE...";
+            statusText.style.color = "var(--accent-amber)";
+            const latexString = await window.StemAPI.scanMathImage(file);
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: BOTANICAL EQUATION PARSED.";
+                statusText.style.color = "var(--accent-neon)";
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
 
