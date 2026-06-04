@@ -74,58 +74,36 @@ async function fetchNasaAsteroidData() {
 }
 
 /* --------------------------------------------------------------------------
-   3. ENGINEERING: THE MATERIALS PROJECT (SMART NATIVE ENGINE)
+   3. ENGINEERING: NIH PUBCHEM COMPUTATIONAL DATABASE
    -------------------------------------------------------------------------- */
 async function fetchMaterialProperties(query) {
-    // 1. SMART TRANSLATOR DICTIONARY: Maps common names to API formulas
-    const elementMap = {
-        "iron": "Fe", "titanium": "Ti", "gold": "Au", "silver": "Ag",
-        "copper": "Cu", "aluminum": "Al", "carbon": "C", "oxygen": "O2",
-        "water": "H2O", "silicon": "Si", "silicon dioxide": "SiO2",
-        "salt": "NaCl", "sodium": "Na", "lead": "Pb", "zinc": "Zn",
-        "nickel": "Ni", "platinum": "Pt", "hydrogen": "H2"
-    };
-
-    // Clean the user's input: make it lowercase and remove extra spaces
-    let cleanQuery = query.trim().toLowerCase();
-
-    // Check if it's a full name in our dictionary. If yes, translate it. If no, use what they typed.
-    let targetFormula = elementMap[cleanQuery] || query.trim();
-
-    // 2. AUTO-FORMATTER: The API requires strict case-sensitivity (e.g., "Fe", not "fe" or "FE")
-    // If the user typed a 1 or 2 letter code, we automatically fix the capitalization for them.
-    if (targetFormula.length <= 2) {
-        targetFormula = targetFormula.charAt(0).toUpperCase() + targetFormula.slice(1).toLowerCase();
-    }
-
-    // 3. PURE NATIVE CONNECTION (Ready for Termux App)
-    const targetUrl = `https://api.materialsproject.org/materials/summary/?formula=${targetFormula}`;
+    // Direct, open pipeline to the US Gov database (No Proxies, No API Keys)
+    // Fetches Formula, Mass, and structural topology complexity
+    const targetUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query.trim())}/property/MolecularFormula,MolecularWeight,Complexity/JSON`;
 
     try {
-        const response = await fetch(targetUrl, {
-            headers: { "X-API-KEY": API_CONFIG.MATERIALS_KEY }
-        });
+        const response = await fetch(targetUrl);
 
         if (!response.ok) {
-            console.error("API Server Error.");
+            console.error("NIH API Error: Material not found or invalid name.");
             return null;
         }
 
         const data = await response.json();
         
-        if (data.data && data.data.length > 0) {
-            // We also return the correctly formatted formula so the UI can display it
+        if (data.PropertyTable && data.PropertyTable.Properties.length > 0) {
+            const props = data.PropertyTable.Properties[0];
             return {
-                formula: data.data[0].formula_pretty || targetFormula,
-                density: data.data[0].density,
-                volume: data.data[0].volume
+                formula: props.MolecularFormula,
+                weight: props.MolecularWeight,
+                complexity: props.Complexity
             };
         } else {
             return null; 
         }
 
     } catch (error) {
-        console.error("Native Fetch Error:", error);
+        console.error("NIH Fetch Error:", error);
         return null;
     }
 }
