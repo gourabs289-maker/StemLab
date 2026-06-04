@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Physics</title>
+    
+    <link rel="stylesheet" href="../css/retro-theme.css">
+    
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    
+    <script src="../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title">PHYSICS // MACRO & NUCLEAR DASHBOARD</h1>
+            <a href="../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px;">
+            <h2 class="panel-title">01 // Macrophysics: Orbital Kinetics</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Fetch live telemetry for Near-Earth Objects to calculate kinetic impact energy.
+            </p>
+            
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Asteroid Velocity (v) km/s</label>
+                    <input type="text" id="astro-v" readonly placeholder="Awaiting NASA Link...">
+                </div>
+                <div class="input-group">
+                    <label>Estimated Mass (m) kg</label>
+                    <input type="text" id="astro-m" readonly placeholder="Awaiting NASA Link...">
+                </div>
+            </div>
+            
+            <button id="fetch-nasa-btn" class="btn btn-primary" style="margin-top: 10px;">ESTABLISH NASA UPLINK</button>
+        </section>
+
+        <section class="panel" style="margin-bottom: 25px; border-color: var(--accent-amber);">
+            <h2 class="panel-title" style="color: var(--accent-amber); border-left-color: var(--accent-amber);">02 // Nuclear Physics: Atomic Mass</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Fetch exact isotopic weights for mass defect and binding energy calculations.
+            </p>
+            
+            <div class="input-group">
+                <label>Target Element (e.g., Uranium)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="element-input" value="Uranium" style="width: 60%;">
+                    <button id="fetch-element-btn" class="btn btn-secondary" style="width: 40%;">FETCH ISOTOPE</button>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Molecular / Isotopic Weight (g/mol)</label>
+                <input type="text" id="element-weight" readonly placeholder="Awaiting Database...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title">03 // Workspace & Equation Scanner</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan a textbook diagram to solve your physics equations.
+            </p>
+
+            <math-field id="physics-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                KE = \frac{1}{2} m v^2
+            </math-field>
+
+            <div class="upload-container">
+                <label class="upload-zone-label">
+                    <span>[+] UPLOAD / SCAN PHYSICS DIAGRAM</span>
+                    <input type="file" id="physics-ocr" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="physics-status" class="status-message" style="margin-top: 10px;"></div>
+        </section>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           PHYSICS LAB: LOCAL EVENT LISTENERS
+           ========================================================================== */
+        
+        // 1. NASA API Uplink
+        document.getElementById('fetch-nasa-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('fetch-nasa-btn');
+            btn.textContent = "LINKING...";
+            
+            const data = await window.StemAPI.fetchNasaAsteroidData();
+            
+            if (data) {
+                document.getElementById('astro-v').value = data.velocity_km_s;
+                document.getElementById('astro-m').value = data.estimated_mass_max_kg;
+                btn.textContent = `DATA ACQUIRED: ${data.name.toUpperCase()}`;
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                btn.textContent = "NASA UPLINK FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        // 2. PubChem Element Uplink (Nuclear)
+        document.getElementById('fetch-element-btn').addEventListener('click', async () => {
+            const element = document.getElementById('element-input').value;
+            const weightBox = document.getElementById('element-weight');
+            
+            weightBox.value = "Fetching...";
+            
+            const data = await window.StemAPI.fetchChemicalData(element);
+            
+            if (data && data.MolecularWeight) {
+                weightBox.value = data.MolecularWeight;
+            } else {
+                weightBox.value = "API Error / Not Found";
+            }
+        });
+
+        // 3. Shared Image Scanner Integration
+        document.getElementById('physics-ocr').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusText = document.getElementById('physics-status');
+            const mathField = document.getElementById('physics-formula');
+            
+            statusText.textContent = "SYS_STATUS: TRANSMITTING TO OCR ENGINE...";
+            statusText.style.color = "var(--accent-amber)";
+            
+            const latexString = await window.StemAPI.scanMathImage(file);
+            
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: PHYSICS EQUATION PARSED.";
+                statusText.style.color = "var(--accent-neon)";
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
