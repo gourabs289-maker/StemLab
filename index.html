@@ -5,12 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STEM Lab Premium Suite</title>
     <link rel="stylesheet" href="css/retro-theme.css">
+    
+    <style>
+        /* The Blue Electric Flicker Animation */
+        @keyframes electric-flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                opacity: 1;
+                filter: drop-shadow(0 0 15px var(--accent-blue));
+            }
+            20%, 24%, 55% {
+                opacity: 0.3;
+                filter: drop-shadow(0 0 2px var(--accent-blue));
+            }
+        }
+
+        .edison-bulb {
+            width: 50px;
+            height: auto;
+            margin-right: 15px;
+            animation: electric-flicker 4s infinite alternate; /* Randomized feel */
+        }
+        
+        .header-container {
+            display: flex;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
 
     <div class="app-container">
         <header class="lab-header">
-            <h1 class="lab-title">SYSTEM DEPLOYMENT: STEM CORE MATRIX</h1>
+            <div class="header-container">
+                <svg class="edison-bulb" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18h6" />
+                    <path d="M10 22h4" />
+                    <path d="M12 2v1" />
+                    <path d="M15 6.5l-1 1" />
+                    <path d="M9 6.5l1 1" />
+                    <path d="M12 18v-4" /> <path d="M10 14h4" /> <path d="M15.5 10c0 2-2.5 3-2.5 5h-2c0-2-2.5-3-2.5-5a4.5 4.5 0 1 1 9 0z" /> </svg>
+                <h1 class="lab-title">SYSTEM DEPLOYMENT: STEM CORE</h1>
+            </div>
             <div class="status-message" id="system-time">SYS_STATUS: ONLINE</div>
         </header>
 
@@ -25,9 +60,6 @@
             
             <article class="panel">
                 <h3 class="panel-title" style="border-left-color: var(--accent-neon);">01 // SCIENCE LABS</h3>
-                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
-                    Execute core biochemical and physical data matrices. Powered by NASA and PubChem arrays.
-                </p>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <a href="labs/physics.html" class="btn btn-primary" style="text-decoration: none; width: 100%;">Physics Dashboard</a>
                     <a href="labs/chemistry.html" class="btn btn-primary" style="text-decoration: none; width: 100%;">Chemistry Lab</a>
@@ -37,9 +69,6 @@
 
             <article class="panel">
                 <h3 class="panel-title" style="border-left-color: var(--accent-amber);">02 // MATHEMATICAL TECH</h3>
-                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
-                    Isolate geospatial matrices, process seismic wave tracking, and compute array algorithms.
-                </p>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <a href="universal-solver.html" class="btn btn-primary" style="border-color: var(--accent-amber); color: var(--accent-amber); text-decoration: none; width: 100%;">Universal Solver Sandbox</a>
                     <a href="labs/math-tech.html" class="btn btn-primary" style="border-color: var(--accent-amber); color: var(--accent-amber); text-decoration: none; width: 100%;">Geospatial & Tech Matrix</a>
@@ -48,9 +77,6 @@
 
             <article class="panel">
                 <h3 class="panel-title" style="border-left-color: var(--accent-blue);">03 // ENGINEERING CORE</h3>
-                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
-                    Analyze crystal properties, mechanical thermodynamics, and material composition vectors.
-                </p>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <a href="labs/engineering.html" class="btn btn-secondary" style="text-decoration: none; width: 100%;">Materials Engineering</a>
                 </div>
@@ -65,7 +91,7 @@
     </div>
 
     <script>
-        // Real-time active environment dashboard script
+        // 1. Real-time active environment dashboard script
         document.addEventListener('DOMContentLoaded', () => {
             const timeDisplay = document.getElementById('system-time');
             const updateClock = () => {
@@ -75,6 +101,27 @@
             setInterval(updateClock, 1000);
             updateClock();
         });
+
+        // 2. The Premium Audio Engine (Flickers every 60 seconds)
+        // Uses a public domain electric spark sound from Google's sound library
+        const sparkSound = new Audio("https://actions.google.com/sounds/v1/science_fiction/electricity_spark.ogg");
+        sparkSound.volume = 0.4; // Kept at 40% volume so it isn't deafening
+
+        let hasInteracted = false;
+
+        // Unlock audio context on user's first tap/click anywhere on the screen
+        document.body.addEventListener('click', () => {
+            hasInteracted = true;
+        }, { once: true });
+
+        // Play the sound every 60,000 milliseconds (60 seconds)
+        setInterval(() => {
+            if (hasInteracted) {
+                // Reset to beginning of sound file and play
+                sparkSound.currentTime = 0;
+                sparkSound.play().catch(e => console.log("Audio play blocked by browser rules:", e));
+            }
+        }, 60000);
     </script>
 </body>
 </html>
