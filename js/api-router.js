@@ -5,7 +5,7 @@
 const API_CONFIG = {
     // Authenticated Keys
     NASA_KEY: "Ml4rl4ULLppyuTHqsEcgAyqRb3RcQGQvovekQkia",
-    MATERIALS_KEY: "lQas49He7nAswUT89cq03noP3keG9e7d",
+    MATERIALS_KEY: "gNcjKqOzDsnAYEo6Z0Z9bhbCFu9o563D",
     
     // Obfuscated Hugging Face Token (Bypasses GitHub Bot Scanners)
     getHFToken: () => {
