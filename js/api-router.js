@@ -126,43 +126,53 @@ async function fetchChemicalData(compoundName) {
 }
 
 /* --------------------------------------------------------------------------
-   5. BIOLOGY MASTER HUB: UNIPROT REST API (Open Web Access)
+   5. BIOLOGY MASTER HUB: UNIPROT SMART SEARCH ENGINE
    -------------------------------------------------------------------------- */
-async function fetchProteinData(proteinAccession) {
-    const url = `${API_CONFIG.UNIPROT_BASE}/${proteinAccession}.json`;
+async function fetchProteinData(query) {
+    // Upgraded to a search endpoint that accepts both text names AND accession codes
+    const url = `${API_CONFIG.UNIPROT_BASE}/search?query=${encodeURIComponent(query)}&size=1`;
 
     try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error("UniProt API Offline or Not Found");
+        if (!response.ok) throw new Error("UniProt API Offline");
         const data = await response.json();
         
-        // Translating UniProt's structure to match your existing HTML files perfectly
+        // If the search returns no results at all
+        if (!data.results || data.results.length === 0) {
+            return null; 
+        }
+
+        const protein = data.results[0];
+
         return {
-            id: data.primaryAccession,
+            id: protein.primaryAccession,
             protein: {
                 recommendedName: {
                     fullName: {
-                        value: data.proteinDescription?.recommendedName?.fullName?.value || "Uncharacterized Protein"
+                        value: protein.proteinDescription?.recommendedName?.fullName?.value || 
+                               protein.proteinDescription?.submissionNames?.[0]?.fullName?.value || 
+                               "Uncharacterized Protein"
                     }
                 }
             },
             organism: {
                 name: {
-                    scientific: data.organism?.scientificName || "Unknown",
-                    common: data.organism?.commonName || ""
+                    scientific: protein.organism?.scientificName || "Unknown",
+                    common: protein.organism?.commonName || ""
                 }
             },
             sequence: {
-                value: data.sequence?.value || "",
-                length: data.sequence?.length || 0,
-                mass: data.sequence?.molWeight || 0
+                value: protein.sequence?.value || "",
+                length: protein.sequence?.length || 0,
+                mass: protein.sequence?.molWeight || 0
             }
         };
     } catch (error) {
-        console.error("UniProt API Error:", error);
+        console.error("UniProt Smart Search Error:", error);
         return null;
     }
 }
+
 
 // Make functions globally available for HTML buttons to trigger
 window.StemAPI = {
