@@ -1,1 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Cellular Biology</title>
+    
+    <link rel="stylesheet" href="../../css/retro-theme.css">
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="../../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: var(--accent-blue);">CELLULAR BIOLOGY // PROTEIN KINETICS</h1>
+            <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Bio Hub</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-blue);">
+            <h2 class="panel-title" style="color: var(--accent-blue); border-left-color: var(--accent-blue);">01 // SMART SEQUENCE ISOLATION</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                <strong>SMART SEARCH ACTIVE:</strong> Type any common protein name (e.g., Insulin, Hemoglobin) OR an exact Accession Code in the box below to isolate its cellular telemetry.
+            </p>
+            
+            <div class="input-group" style="margin-bottom: 20px;">
+                <button id="fetch-protein-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px;">TRIGGER SMART SEARCH</button>
+                <input type="text" id="protein-input" value="Insulin" style="width: 100%; text-align: center; font-size: 1.1rem; padding: 10px;" placeholder="Enter name or code here...">
+            </div>
+            
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Accession Code</label>
+                    <input type="text" id="protein-code" readonly placeholder="Awaiting Search...">
+                </div>
+                <div class="input-group">
+                    <label>Official Protein Name</label>
+                    <input type="text" id="protein-name" readonly placeholder="Awaiting Search...">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 10px;">
+                <label>Sequence Length (Amino Acids)</label>
+                <input type="text" id="protein-length" readonly placeholder="Awaiting Search...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title" style="color: var(--accent-blue); border-left-color: var(--accent-blue);">02 // WORKSPACE & EQUATION SCANNER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan cellular equations (e.g., Michaelis-Menten enzyme kinetics).
+            </p>
+
+            <math-field id="cell-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                v = \frac{V_{max} [S]}{K_m + [S]}
+            </math-field>
+
+            <div class="upload-container">
+                <label class="upload-zone-label" style="color: var(--accent-blue);">
+                    <span>[+] UPLOAD / SCAN BIOLOGY DIAGRAM</span>
+                    <input type="file" id="cell-ocr" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="cell-status" class="status-message" style="margin-top: 10px; color: var(--accent-blue);"></div>
+        </section>
+    </div>
+
+    <script>
+        // Upgraded Event Listener for Smart Search UI
+        document.getElementById('fetch-protein-btn').addEventListener('click', async () => {
+            const query = document.getElementById('protein-input').value;
+            const codeBox = document.getElementById('protein-code');
+            const nameBox = document.getElementById('protein-name');
+            const lengthBox = document.getElementById('protein-length');
+            const btn = document.getElementById('fetch-protein-btn');
+            
+            btn.textContent = "SEARCHING DATABASE...";
+            codeBox.value = "Scanning...";
+            nameBox.value = "Scanning...";
+            lengthBox.value = "Scanning...";
+            
+            const data = await window.StemAPI.fetchProteinData(query);
+            
+            if (data && data.id) {
+                codeBox.value = data.id;
+                nameBox.value = data.protein.recommendedName?.fullName?.value || "Uncharacterized";
+                lengthBox.value = data.sequence.length;
+                
+                btn.textContent = "TELEMETRY ISOLATED";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                codeBox.value = "ERR: Not Found";
+                nameBox.value = "ERR: Not Found";
+                lengthBox.value = "ERR: Not Found";
+                
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        document.getElementById('cell-ocr').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusText = document.getElementById('cell-status');
+            const mathField = document.getElementById('cell-formula');
+            
+            statusText.textContent = "SYS_STATUS: TRANSMITTING TO OCR ENGINE...";
+            statusText.style.color = "var(--accent-amber)";
+            
+            const latexString = await window.StemAPI.scanMathImage(file);
+            
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: BIOLOGY EQUATION PARSED.";
+                statusText.style.color = "var(--accent-neon)";
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
 
