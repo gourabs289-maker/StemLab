@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Universal Solver</title>
+    
+    <link rel="stylesheet" href="css/retro-theme.css">
+    
+    <script defer src="https://unpkg.com/mathlive"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    
+    <script src="js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title">UNIVERSAL SOLVER SANDBOX</h1>
+            <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px;">
+            <h2 class="panel-title">01 // Formulate or Scan Equation</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Tap the box below to open the virtual scientific keypad. 
+            </p>
+            
+            <math-field id="formula-input" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                E = m c^2
+            </math-field>
+
+            <div class="upload-container">
+                <label class="upload-zone-label">
+                    <span>[+] UPLOAD / SCAN TEXTBOOK DIAGRAM</span>
+                    <input type="file" id="ocr-upload" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="ocr-status" class="status-message" style="margin-top: 10px;"></div>
+        </section>
+
+        <section class="panel" style="margin-bottom: 25px;">
+            <h2 class="panel-title">02 // Variable Mapping & Smart Fetch</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Assign values to your variables. Use the dropdowns to pull live database metrics.
+            </p>
+            
+            <div id="variable-container" class="stem-grid">
+                <div class="input-group">
+                    <label>Variable: m</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" id="var-m" placeholder="Enter number...">
+                        <select id="fetch-m" style="width: 50%;" onchange="triggerSmartFetch('m', this.value)">
+                            <option value="">Fetch Database...</option>
+                            <option value="NASA">NASA (Asteroid Mass)</option>
+                            <option value="PUBCHEM">PubChem (Chemical Mass)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <button id="calculate-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px; padding: 15px; font-size: 1.2rem;">
+                EXECUTE CALCULATION
+            </button>
+            <div class="visual-viewport" style="padding: 20px; text-align: center;">
+                <h3 style="color: var(--text-secondary); font-size: 1rem; margin-bottom: 10px;">OUTPUT / RESULT:</h3>
+                <div id="result-display" style="font-size: 2rem; color: var(--accent-neon); text-shadow: var(--glow-soft);">
+                    Awaiting Execution...
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        /* ==========================================================================
+           UNIVERSAL SOLVER: LOCAL LOGIC ENGINE
+           ========================================================================== */
+        
+        // 1. Handle Image Scanning (Connecting to your api-router.js)
+        document.getElementById('ocr-upload').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusText = document.getElementById('ocr-status');
+            const mathField = document.getElementById('formula-input');
+            
+            statusText.textContent = "SYS_STATUS: TRANSMITTING IMAGE TO AI OCR...";
+            statusText.style.color = "var(--accent-amber)";
+            
+            // Call the Hugging Face function from api-router.js
+            const latexString = await window.StemAPI.scanMathImage(file);
+            
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: EQUATION PARSED SUCCESSFULLY.";
+                statusText.style.color = "var(--accent-neon)";
+                // Inject the scanned formula into the virtual keypad
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: UNABLE TO READ FORMULA.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+
+        // 2. Smart Fetch Trigger (Wiring the dropdowns to the APIs)
+        async function triggerSmartFetch(variableName, source) {
+            const inputField = document.getElementById(`var-${variableName}`);
+            if (!source) return;
+
+            inputField.value = "Fetching...";
+            
+            if (source === 'NASA') {
+                const data = await window.StemAPI.fetchNasaAsteroidData();
+                if (data) inputField.value = data.estimated_mass_max_kg;
+                else inputField.value = "API Error";
+            }
+            else if (source === 'PUBCHEM') {
+                const data = await window.StemAPI.fetchChemicalData("water"); // Example hardcode for demo
+                if (data) inputField.value = data.MolecularWeight;
+                else inputField.value = "API Error";
+            }
+        }
+
+        // 3. Calculation Engine (Wiring math.js to MathLive)
+        document.getElementById('calculate-btn').addEventListener('click', () => {
+            const mathField = document.getElementById('formula-input');
+            const resultDisplay = document.getElementById('result-display');
+            
+            try {
+                // Get standard math string from the MathLive LaTeX box
+                let expression = mathField.getValue('ascii-math');
+                
+                // For this prototype demo, we will execute a direct math.js evaluation 
+                // of basic formulas. (Advanced algebra isolation requires a heavier parser).
+                
+                // Demo: Hardcoded test mapping for E=mc^2 replacing 'm' and 'c'
+                let mVal = document.getElementById('var-m')?.value || 0;
+                let cVal = 299792458; // Speed of light
+                
+                // Basic string replacement for demo calculation
+                let solved = expression
+                    .replace('E=', '')
+                    .replace('m', mVal)
+                    .replace('c', cVal);
+                
+                const finalNumber = math.evaluate(solved);
+                resultDisplay.textContent = finalNumber.toExponential(4);
+            } catch (err) {
+                resultDisplay.textContent = "ERR: INVALID SYNTAX";
+                resultDisplay.style.color = "var(--alert-red)";
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
