@@ -114,15 +114,60 @@ async function fetchMaterialProperties(query) {
 }
 
 /* --------------------------------------------------------------------------
-   4. CHEMISTRY & ZOOLOGY: PUBCHEM
+   4. CHEMISTRY: HYBRID MATRIX (OFFLINE ELEMENTS + PUBCHEM API)
    -------------------------------------------------------------------------- */
 async function fetchChemicalData(compoundName) {
-    const url = `${API_CONFIG.PUBCHEM_BASE}/compound/name/${compoundName}/property/MolecularWeight,IsotopeAtomCount/JSON`;
+    let cleanQuery = compoundName.trim().toLowerCase();
+
+    // NEW ADDITION: Premium Offline Periodic Table Bank for fundamental elements
+    const elementBank = {
+        "hydrogen": { mass: "1.008 g/mol", config: "1s¹", electro: "2.20" },
+        "helium": { mass: "4.0026 g/mol", config: "1s²", electro: "N/A (Noble Gas)" },
+        "lithium": { mass: "6.94 g/mol", config: "[He] 2s¹", electro: "0.98" },
+        "carbon": { mass: "12.011 g/mol", config: "[He] 2s² 2p²", electro: "2.55" },
+        "nitrogen": { mass: "14.007 g/mol", config: "[He] 2s² 2p³", electro: "3.04" },
+        "oxygen": { mass: "15.999 g/mol", config: "[He] 2s² 2p⁴", electro: "3.44" },
+        "fluorine": { mass: "18.998 g/mol", config: "[He] 2s² 2p⁵", electro: "3.98" },
+        "sodium": { mass: "22.989 g/mol", config: "[Ne] 3s¹", electro: "0.93" },
+        "silicon": { mass: "28.085 g/mol", config: "[Ne] 3s² 3p²", electro: "1.90" },
+        "iron": { mass: "55.845 g/mol", config: "[Ar] 4s² 3d⁶", electro: "1.83" },
+        "copper": { mass: "63.546 g/mol", config: "[Ar] 4s¹ 3d¹⁰", electro: "1.90" },
+        "silver": { mass: "107.86 g/mol", config: "[Kr] 5s¹ 4d¹⁰", electro: "1.93" },
+        "tungsten": { mass: "183.84 g/mol", config: "[Xe] 6s² 4f¹⁴ 5d⁴", electro: "2.36" },
+        "platinum": { mass: "195.08 g/mol", config: "[Xe] 6s¹ 4f¹⁴ 5d⁹", electro: "2.28" },
+        "gold": { mass: "196.96 g/mol", config: "[Xe] 6s¹ 4f¹⁴ 5d¹⁰", electro: "2.54" },
+        "lead": { mass: "207.2 g/mol", config: "[Xe] 6s² 4f¹⁴ 5d¹⁰ 6p²", electro: "2.33" },
+        "uranium": { mass: "238.02 g/mol", config: "[Rn] 7s² 5f³ 6d¹", electro: "1.38" },
+        "plutonium": { mass: "244 g/mol", config: "[Rn] 7s² 5f⁶", electro: "1.28" }
+    };
+
+    // If the user typed a base element, instantly return the new, rich offline data
+    if (elementBank[cleanQuery]) {
+        return {
+            source: "Offline Matrix",
+            MolecularWeight: elementBank[cleanQuery].mass,
+            IsotopeAtomCount: "Standard Isotopes", // Preserving compatibility with your old UI
+            ElectronConfiguration: elementBank[cleanQuery].config,
+            Electronegativity: elementBank[cleanQuery].electro
+        };
+    }
+
+    // ORIGINAL DATA PRESERVED: If it is a complex molecule (like Aspirin), fetch from NIH PubChem
+    const url = `${API_CONFIG.PUBCHEM_BASE}/compound/name/${encodeURIComponent(compoundName)}/property/MolecularWeight,IsotopeAtomCount/JSON`;
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error("PubChem API Offline");
         const data = await response.json();
-        return data.PropertyTable.Properties[0]; 
+        const props = data.PropertyTable.Properties[0];
+        
+        // Return the original data, but add placeholders for the new fields so the app doesn't crash
+        return {
+            source: "NIH PubChem API",
+            MolecularWeight: props.MolecularWeight + " g/mol",
+            IsotopeAtomCount: props.IsotopeAtomCount || "0",
+            ElectronConfiguration: "Complex Covalent Bond",
+            Electronegativity: "Variable Molecule"
+        };
     } catch (error) { return null; }
 }
 
