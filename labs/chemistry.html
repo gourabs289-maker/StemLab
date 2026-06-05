@@ -1,1 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Chemistry</title>
+    
+    <link rel="stylesheet" href="../css/retro-theme.css">
+    
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <script src="../js/api-router.js"></script>
+
+    <style>
+        .scanner-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .scanner-modal.active { display: flex; }
+        .crop-container {
+            width: 90%; max-width: 500px; max-height: 60vh;
+            background: #111; border: 2px solid var(--accent-neon);
+            position: relative; overflow: hidden; margin-bottom: 20px;
+        }
+        .crop-container img { display: block; max-width: 100%; }
+        .laser-beam {
+            position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: #00ff00; box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00;
+            z-index: 100; pointer-events: none; display: none;
+            animation: scan-laser 2s linear infinite;
+        }
+        @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .modal-controls { display: flex; gap: 15px; width: 90%; max-width: 500px; }
+        .modal-controls button { flex: 1; font-weight: bold; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title">CHEMISTRY // MOLECULAR DATA DASHBOARD</h1>
+            <a href="../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-neon);">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">01 // HYBRID CHEMICAL DATABASE</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Fetch live molecular metrics from the NIH, or pull advanced atomic data from the internal quantum chemistry bank.
+            </p>
+            <div class="input-group">
+                <label>Chemical Compound or Element Name</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chem-input" value="Gold" style="width: 60%;">
+                    <button id="fetch-chem-btn" class="btn btn-primary" style="width: 40%;">SCAN DATABASE</button>
+                </div>
+            </div>
+            <div class="stem-grid">
+                <div class="input-group"><label>Molecular Weight</label><input type="text" id="chem-weight" readonly placeholder="Awaiting Link..."></div>
+                <div class="input-group"><label>Isotope Atom Count</label><input type="text" id="chem-isotopes" readonly placeholder="Awaiting Link..."></div>
+            </div>
+            <div class="stem-grid" style="margin-top: 15px;">
+                <div class="input-group"><label>Electron Configuration</label><input type="text" id="chem-config" readonly placeholder="Awaiting Link..."></div>
+                <div class="input-group"><label>Electronegativity</label><input type="text" id="chem-electro" readonly placeholder="Awaiting Link..."></div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title">02 // Workspace & Equation Scanner</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan a textbook diagram to solve stoichiometry or gas laws.
+            </p>
+            <math-field id="chem-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">P V = n R T</math-field>
+            <div class="upload-container">
+                <label class="upload-zone-label">
+                    <span>[+] UPLOAD / SCAN CHEMISTRY DIAGRAM</span>
+                    <input type="file" id="chem-ocr" class="hidden-file-input" accept="image/*">
+                </label>
+            </div>
+            <div id="chem-status" class="status-message" style="margin-top: 10px;"></div>
+        </section>
+    </div>
+
+    <div id="scanner-modal" class="scanner-modal">
+        <h2 style="color: var(--accent-neon); margin-bottom: 15px; font-family: monospace; letter-spacing: 2px;">SYS_CALIBRATE_CHEM</h2>
+        <div class="crop-container">
+            <img id="image-to-crop" src="">
+            <div id="laser-beam" class="laser-beam"></div>
+        </div>
+        <div class="modal-controls">
+            <button id="btn-cancel" class="btn btn-secondary" style="border-color: var(--alert-red); color: var(--alert-red);">CANCEL</button>
+            <button id="btn-scan" class="btn btn-primary" style="border-color: #00ff00; color: #00ff00;">SCAN DIAGRAM</button>
+        </div>
+        <div id="modal-status" style="margin-top: 15px; color: #00ff00; font-family: monospace; display: none;">INITIATING HUGGINGFACE UPLINK...</div>
+    </div>
+
+    <script>
+        // 1. Chemistry DB Logic
+        document.getElementById('fetch-chem-btn').addEventListener('click', async () => {
+            const compound = document.getElementById('chem-input').value;
+            const btn = document.getElementById('fetch-chem-btn');
+            btn.textContent = "SEARCHING...";
+            const data = await window.StemAPI.fetchChemicalData(compound);
+            if (data && data.MolecularWeight) {
+                document.getElementById('chem-weight').value = data.MolecularWeight;
+                document.getElementById('chem-isotopes').value = data.IsotopeAtomCount || "0";
+                document.getElementById('chem-config').value = data.ElectronConfiguration || "N/A";
+                document.getElementById('chem-electro').value = data.Electronegativity || "N/A";
+                btn.textContent = "COMPOUND FOUND";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        // 2. OCR Scanner Logic
+        let cropper;
+        const fileInput = document.getElementById('chem-ocr');
+        const scannerModal = document.getElementById('scanner-modal');
+        const imageToCrop = document.getElementById('image-to-crop');
+        const laserBeam = document.getElementById('laser-beam');
+        const btnCancel = document.getElementById('btn-cancel');
+        const btnScan = document.getElementById('btn-scan');
+        const modalStatus = document.getElementById('modal-status');
+        const statusText = document.getElementById('chem-status');
+        const mathField = document.getElementById('chem-formula');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imageToCrop.src = event.target.result;
+                scannerModal.classList.add('active');
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(imageToCrop, { viewMode: 1, autoCropArea: 0.8, background: false });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnCancel.addEventListener('click', () => {
+            scannerModal.classList.remove('active');
+            if (cropper) cropper.destroy();
+            fileInput.value = ""; 
+        });
+
+        btnScan.addEventListener('click', () => {
+            if (!cropper) return;
+            btnScan.disabled = true; btnCancel.disabled = true; cropper.disable();
+            laserBeam.style.display = 'block'; modalStatus.style.display = 'block';
+            modalStatus.textContent = "SYS_SCANNING: TRANSMITTING TO HUGGINGFACE...";
+
+            cropper.getCroppedCanvas().toBlob(async (blob) => {
+                const croppedFile = new File([blob], "chem_scan.jpg", { type: "image/jpeg" });
+                statusText.textContent = "SYS_STATUS: PROCESSING UPLINK...";
+                statusText.style.color = "var(--accent-amber)";
+                
+                const latexString = await window.StemAPI.scanMathImage(croppedFile);
+                
+                scannerModal.classList.remove('active'); laserBeam.style.display = 'none';
+                modalStatus.style.display = 'none'; btnScan.disabled = false; btnCancel.disabled = false;
+                fileInput.value = ""; 
+                
+                if (latexString && !latexString.includes("Error")) {
+                    statusText.textContent = "SYS_STATUS: EQUATION PARSED.";
+                    statusText.style.color = "var(--accent-neon)";
+                    mathField.setValue(latexString); 
+                } else {
+                    statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                    statusText.style.color = "var(--alert-red)";
+                }
+            }, 'image/jpeg');
+        });
+    </script>
+</body>
+</html>
 
