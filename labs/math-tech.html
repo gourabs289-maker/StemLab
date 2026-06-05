@@ -1,1 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Math & Tech</title>
+    
+    <link rel="stylesheet" href="../css/retro-theme.css">
+    
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <script src="../js/api-router.js"></script>
+
+    <style>
+        .scanner-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .scanner-modal.active { display: flex; }
+        
+        .crop-container {
+            width: 90%; max-width: 500px; max-height: 60vh;
+            background: #111; border: 2px solid var(--accent-amber);
+            position: relative; overflow: hidden; margin-bottom: 20px;
+        }
+        
+        /* The image inside the cropper */
+        .crop-container img { display: block; max-width: 100%; }
+
+        /* The Green Laser Animation */
+        .laser-beam {
+            position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00;
+            z-index: 100; pointer-events: none; display: none;
+            animation: scan-laser 2s linear infinite;
+        }
+
+        @keyframes scan-laser {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .modal-controls { display: flex; gap: 15px; width: 90%; max-width: 500px; }
+        .modal-controls button { flex: 1; font-weight: bold; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: var(--accent-amber);">MATH-TECH // GEOSPATIAL MATRIX</h1>
+            <a href="../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-amber);">
+            <h2 class="panel-title" style="color: var(--accent-amber); border-left-color: var(--accent-amber);">01 // PLANETARY TELEMETRY & GEOPHYSICS</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Interface with the NASA Near-Earth Object (NEO) tracker and the global USGS seismic grid simultaneously.
+            </p>
+            
+            <button id="fetch-geo-btn" class="btn btn-primary" style="margin-bottom: 20px; width: 100%; border-color: var(--accent-amber); color: var(--accent-amber); font-weight: bold; letter-spacing: 1px;">
+                INITIALIZE SATELLITE & TECTONIC SENSORS
+            </button>
+            
+            <h3 style="color: var(--text-main); font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">// NASA NEO ORBITAL THREAT MATRIX</h3>
+            <div class="stem-grid" style="margin-bottom: 10px;">
+                <div class="input-group">
+                    <label>Asteroid Designation</label>
+                    <input type="text" id="nasa-name" readonly placeholder="Awaiting Uplink...">
+                </div>
+                <div class="input-group">
+                    <label>Relative Velocity</label>
+                    <input type="text" id="nasa-vel" readonly placeholder="Awaiting Uplink...">
+                </div>
+            </div>
+            <div class="input-group" style="margin-bottom: 25px;">
+                <label>Estimated Maximum Mass</label>
+                <input type="text" id="nasa-mass" readonly placeholder="Awaiting Uplink...">
+            </div>
+
+            <h3 style="color: var(--text-main); font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">// USGS GLOBAL SEISMIC GRID (LARGEST IN 24H)</h3>
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Max Magnitude</label>
+                    <input type="text" id="usgs-mag" readonly placeholder="Awaiting Uplink...">
+                </div>
+                <div class="input-group">
+                    <label>Epicenter Depth</label>
+                    <input type="text" id="usgs-depth" readonly placeholder="Awaiting Uplink...">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 10px;">
+                <label>Epicenter Location</label>
+                <input type="text" id="usgs-location" readonly placeholder="Awaiting Uplink...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title" style="color: var(--accent-amber); border-left-color: var(--accent-amber);">02 // Workspace & Equation Scanner</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan complex mathematical matrices, calculus, or tech formulas.
+            </p>
+
+            <math-field id="math-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                f(x) = \int_{a}^{b} x^2 \,dx
+            </math-field>
+
+            <div class="upload-container">
+                <label class="upload-zone-label" style="color: var(--accent-amber);">
+                    <span>[+] UPLOAD / SCAN MATH DIAGRAM</span>
+                    <input type="file" id="math-ocr" class="hidden-file-input" accept="image/*">
+                </label>
+            </div>
+            <div id="math-status" class="status-message" style="margin-top: 10px; color: var(--accent-amber);"></div>
+        </section>
+    </div>
+
+    <div id="scanner-modal" class="scanner-modal">
+        <h2 style="color: var(--accent-amber); margin-bottom: 15px; font-family: monospace; letter-spacing: 2px;">SYS_CALIBRATE_IMAGE</h2>
+        
+        <div class="crop-container">
+            <img id="image-to-crop" src="">
+            <div id="laser-beam" class="laser-beam"></div>
+        </div>
+
+        <div class="modal-controls">
+            <button id="btn-cancel" class="btn btn-secondary" style="border-color: var(--alert-red); color: var(--alert-red);">CANCEL</button>
+            <button id="btn-scan" class="btn btn-primary" style="border-color: #00ff00; color: #00ff00;">SCAN DIAGRAM</button>
+        </div>
+        <div id="modal-status" style="margin-top: 15px; color: #00ff00; font-family: monospace; display: none;">INITIATING HUGGINGFACE UPLINK...</div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. PLANETARY TELEMETRY LOGIC
+           ========================================================================== */
+        document.getElementById('fetch-geo-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('fetch-geo-btn');
+            
+            const nName = document.getElementById('nasa-name');
+            const nVel = document.getElementById('nasa-vel');
+            const nMass = document.getElementById('nasa-mass');
+            const uMag = document.getElementById('usgs-mag');
+            const uDepth = document.getElementById('usgs-depth');
+            const uLoc = document.getElementById('usgs-location');
+            
+            btn.textContent = "SYNCHRONIZING GLOBAL SENSORS...";
+            btn.style.color = "var(--accent-amber)";
+            btn.style.borderColor = "var(--accent-amber)";
+            
+            const loadingText = "Scanning...";
+            nName.value = loadingText; nVel.value = loadingText; nMass.value = loadingText;
+            uMag.value = loadingText; uDepth.value = loadingText; uLoc.value = loadingText;
+            
+            const data = await window.StemAPI.fetchGeospatialData();
+            
+            if (data) {
+                nName.value = data.asteroidName;
+                nVel.value = data.asteroidVelocity;
+                nMass.value = data.asteroidMass;
+                uMag.value = data.quakeMag;
+                uDepth.value = data.quakeDepth;
+                uLoc.value = data.quakeLocation;
+                
+                btn.textContent = "TELEMETRY LOCKED";
+                btn.style.color = "var(--accent-neon)";
+                btn.style.borderColor = "var(--accent-neon)";
+            } else {
+                const errText = "ERR: Uplink Failed";
+                nName.value = errText; nVel.value = errText; nMass.value = errText;
+                uMag.value = errText; uDepth.value = errText; uLoc.value = errText;
+                btn.textContent = "SENSOR FAILURE";
+                btn.style.color = "var(--alert-red)";
+                btn.style.borderColor = "var(--alert-red)";
+            }
+        });
+
+        /* ==========================================================================
+           2. ADVANCED OCR CROP & LASER SCANNER LOGIC
+           ========================================================================== */
+        let cropper;
+        const fileInput = document.getElementById('math-ocr');
+        const scannerModal = document.getElementById('scanner-modal');
+        const imageToCrop = document.getElementById('image-to-crop');
+        const laserBeam = document.getElementById('laser-beam');
+        const btnCancel = document.getElementById('btn-cancel');
+        const btnScan = document.getElementById('btn-scan');
+        const modalStatus = document.getElementById('modal-status');
+        
+        const mathStatusText = document.getElementById('math-status');
+        const mathField = document.getElementById('math-formula');
+
+        // Step 1: User selects file, open modal, load image
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imageToCrop.src = event.target.result;
+                scannerModal.classList.add('active'); // Show UI
+                
+                // Initialize Cropper.js
+                if (cropper) cropper.destroy(); // Destroy old instance if exists
+                cropper = new Cropper(imageToCrop, {
+                    viewMode: 1,
+                    autoCropArea: 0.8,
+                    background: false
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Step 2: Cancel button closes modal
+        btnCancel.addEventListener('click', () => {
+            scannerModal.classList.remove('active');
+            if (cropper) cropper.destroy();
+            fileInput.value = ""; // Reset input
+        });
+
+        // Step 3: User clicks "SCAN DIAGRAM"
+        btnScan.addEventListener('click', () => {
+            if (!cropper) return;
+
+            // 1. Lock UI and start Laser Animation
+            btnScan.disabled = true;
+            btnCancel.disabled = true;
+            cropper.disable(); // Prevent user from moving the crop box
+            laserBeam.style.display = 'block'; // Turn on the green laser
+            modalStatus.style.display = 'block';
+            modalStatus.textContent = "SYS_SCANNING: TRANSMITTING TO HUGGINGFACE...";
+
+            // 2. Extract the cropped area as a File Blob
+            cropper.getCroppedCanvas().toBlob(async (blob) => {
+                
+                // Create a temporary File object from the Blob to pass to your API router
+                const croppedFile = new File([blob], "cropped_scan.jpg", { type: "image/jpeg" });
+
+                // 3. Send to API Brain
+                mathStatusText.textContent = "SYS_STATUS: PROCESSING UPLINK...";
+                mathStatusText.style.color = "var(--accent-amber)";
+                
+                const latexString = await window.StemAPI.scanMathImage(croppedFile);
+                
+                // 4. Handle Result & Clean up UI
+                scannerModal.classList.remove('active'); // Close Modal
+                laserBeam.style.display = 'none'; // Turn off laser
+                modalStatus.style.display = 'none';
+                btnScan.disabled = false;
+                btnCancel.disabled = false;
+                fileInput.value = ""; // Reset file input
+                
+                if (latexString && !latexString.includes("Error")) {
+                    mathStatusText.textContent = "SYS_STATUS: MATH EQUATION PARSED.";
+                    mathStatusText.style.color = "var(--accent-neon)";
+                    mathField.setValue(latexString); 
+                } else {
+                    mathStatusText.textContent = "SYS_ERROR: SCAN FAILED. CHECK CLARITY.";
+                    mathStatusText.style.color = "var(--alert-red)";
+                }
+            }, 'image/jpeg');
+        });
+    </script>
+</body>
+</html>
 
