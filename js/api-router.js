@@ -386,41 +386,60 @@ async function fetchParticleData(query) {
     };
 }
 
-
 /* --------------------------------------------------------------------------
-   7. ALGORITHMIC STOICHIOMETRY: DYNAMIC EQUATION BALANCER
+   7. HYBRID STOICHIOMETRY: DICTIONARY PREDICTION + MATRIX SOLVER
    -------------------------------------------------------------------------- */
 function balanceEquation(input) {
-    // 1. Advanced LaTeX & Syntax Cleaner (Preserves Strict Casing)
+    // 1. Clean the math syntax from the MathLive keyboard
     let cleanInput = input.replace(/\s+/g, '')
         .replace(/\\mathrm/g, '')
         .replace(/\\text/g, '')
         .replace(/\\/g, '')
         .replace(/_/g, '')
         .replace(/\^/g, '')
-        .replace(/{/g, '')
-        .replace(/}/g, '')
-        .replace('->', '=')
-        .replace('→', '='); 
+        .replace(/{/g, '').replace(/}/g, '')
+        .replace('->', '=').replace('→', '='); 
     
-    if (!cleanInput.includes('=')) return "ERR: Missing '=' or '→' delimiter.";
+    // --- HYBRID STEP 1: THE PREDICTION DICTIONARY ---
+    // If the user only typed the left side, predict the product and balance it instantly.
+    let lowerInput = cleanInput.toLowerCase().replace('=', '');
+    const predictionBank = {
+        "h2+o2": "2H₂ + O₂ → 2H₂O",
+        "o2+h2": "2H₂ + O₂ → 2H₂O",
+        "c+o2": "C + O₂ → CO₂",
+        "ch4+o2": "CH₄ + 2O₂ → CO₂ + 2H₂O",
+        "co2+h2o": "CO₂ + H₂O → H₂CO₃",
+        "h2o+co2": "CO₂ + H₂O → H₂CO₃",
+        "n2+h2": "N₂ + 3H₂ → 2NH₃",
+        "h2o2": "2H₂O₂ → 2H₂O + O₂",
+        "fe+o2": "4Fe + 3O₂ → 2Fe₂O₃",
+        "zn+hcl": "Zn + 2HCl → ZnCl₂ + H₂"
+    };
 
+    if (predictionBank[lowerInput]) {
+        return predictionBank[lowerInput];
+    }
+
+    // --- HYBRID STEP 2: THE ALGORITHMIC MATRIX SOLVER ---
+    // If it's a complex, custom reaction, use the math solver (Requires both sides)
+    if (!cleanInput.includes('=')) return "ERR: Missing '=' delimiter.";
+    
     let sides = cleanInput.split('=');
-    if (sides.length !== 2) return "ERR: Invalid reaction syntax.";
+    if (sides[0] === "" || sides[1] === "") {
+        return "ERR: Enter products to balance, or type a known reaction.";
+    }
 
     let leftMols = sides[0].split('+');
     let rightMols = sides[1].split('+');
     let allMols = leftMols.concat(rightMols);
     const numMols = allMols.length;
 
-    // Safety limit to prevent browser crashing on infinite loops
-    if (numMols < 2 || numMols > 7) return "ERR: Reaction complexity exceeds offline limits.";
+    if (numMols < 2 || numMols > 7) return "ERR: Matrix bounds exceeded.";
 
-    // 2. Deep Atomic Parser (Expands Parentheses e.g., Ca(OH)2 -> CaO2H2)
+    // Parse atomic structures (e.g., Fe2(SO4)3)
     function parseMolecule(mol) {
         let counts = {};
         let expanded = mol;
-        
         while (/\(([^\)]+)\)([0-9]*)/.test(expanded)) {
             expanded = expanded.replace(/\(([^\)]+)\)([0-9]*)/g, (match, inner, mult) => {
                 let m = parseInt(mult) || 1;
@@ -429,7 +448,6 @@ function balanceEquation(input) {
                 });
             });
         }
-        
         let regex = /([A-Z][a-z]*)([0-9]*)/g;
         let match;
         let hasElements = false;
@@ -439,8 +457,7 @@ function balanceEquation(input) {
             let count = match[2] ? parseInt(match[2]) : 1;
             counts[elem] = (counts[elem] || 0) + count;
         }
-        
-        if (!hasElements) throw new Error("Invalid structure");
+        if (!hasElements) throw new Error("Invalid");
         return counts;
     }
 
@@ -451,18 +468,18 @@ function balanceEquation(input) {
         return "ERR: Unrecognizable atomic structure.";
     }
 
-    // 3. Conservation of Mass Verification
+    // Verify Conservation of Mass
     let leftElems = new Set(), rightElems = new Set();
     for (let i = 0; i < leftMols.length; i++) Object.keys(parsed[i]).forEach(e => leftElems.add(e));
     for (let i = 0; i < rightMols.length; i++) Object.keys(parsed[leftMols.length + i]).forEach(e => rightElems.add(e));
     
     let allElems = Array.from(new Set([...leftElems, ...rightElems]));
     for (let e of allElems) {
-        if (!leftElems.has(e) || !rightElems.has(e)) return `ERR: Elemental mismatch (${e} missing).`;
+        if (!leftElems.has(e) || !rightElems.has(e)) return `ERR: Elemental mismatch (${e} missing on one side).`;
     }
 
-    // 4. Algebraic Matrix Solver (Iterative Brute Force)
-    const MAX_COEF = numMols <= 4 ? 30 : (numMols <= 5 ? 15 : 10);
+    // Brute-Force Matrix calculation
+    const MAX_COEF = 20;
     let coeffs = new Array(numMols).fill(1);
 
     function checkBalance() {
@@ -484,7 +501,7 @@ function balanceEquation(input) {
         return false;
     }
 
-    // 5. Build Subscripted Output String
+    // Output formatted result
     if (solve(0)) {
         const buildString = (mols, offset) => {
             return mols.map((m, i) => {
@@ -496,14 +513,10 @@ function balanceEquation(input) {
                 return coef + molStr;
             }).join(" + ");
         };
-
-        let finalLeft = buildString(leftMols, 0);
-        let finalRight = buildString(rightMols, leftMols.length);
-
-        return `${finalLeft} → ${finalRight}`;
+        return `${buildString(leftMols, 0)} → ${buildString(rightMols, leftMols.length)}`;
     }
 
-    return "ERR: Unable to resolve matrix constraints.";
+    return "ERR: Matrix unresolved (Check formula).";
 }
 
 
