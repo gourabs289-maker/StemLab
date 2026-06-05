@@ -147,57 +147,92 @@ async function fetchProteinData(query) {
 }
 
 /* --------------------------------------------------------------------------
-   6. PARTICLE PHYSICS: EXPANDED STANDARD MODEL & HADRON DATABANK
+   6. PARTICLE PHYSICS: THE ULTIMATE NUCLEAR DATABANK
    -------------------------------------------------------------------------- */
 async function fetchParticleData(query) {
-    // Smart String Cleaner: Lowercase, trim, and remove trailing 's' to handle plurals (e.g., "pions" -> "pion")
-    let cleanQuery = query.trim().toLowerCase().replace(/s$/, '');
+    // Advanced Smart Cleaner: Removes plurals and category words so searches like "Delta baryons" match "delta"
+    let cleanQuery = query.toLowerCase().trim()
+        .replace(/s$/, '') 
+        .replace(/\s+baryon$/, '')
+        .replace(/\s+meson$/, '')
+        .replace(/\s+particle$/, '')
+        .replace(/\s+quark$/, '');
 
-    // The Ultimate Offline Matrix: 17 Fundamentals + Major Composites
+    // The Master Matrix: Fundamentals, Baryons, Mesons, and Antimatter
     const particleMatrix = {
-        // --- THE 6 QUARKS ---
-        "up quark": { mass: "2.2 MeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "down quark": { mass: "4.7 MeV/c²", charge: "-1/3 e", spin: "1/2" },
-        "charm quark": { mass: "1.28 GeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "strange quark": { mass: "96 MeV/c²", charge: "-1/3 e", spin: "1/2" },
-        "top quark": { mass: "173.1 GeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "bottom quark": { mass: "4.18 GeV/c²", charge: "-1/3 e", spin: "1/2" },
+        // --- 1. FUNDAMENTAL QUARKS ---
+        "up": { mass: "2.16 MeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "down": { mass: "4.67 MeV/c²", charge: "-1/3 e", spin: "1/2" },
+        "charm": { mass: "1.27 GeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "strange": { mass: "93 MeV/c²", charge: "-1/3 e", spin: "1/2" },
+        "top": { mass: "172.69 GeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "bottom": { mass: "4.18 GeV/c²", charge: "-1/3 e", spin: "1/2" },
         
-        // --- THE 6 LEPTONS ---
+        // --- 2. FUNDAMENTAL LEPTONS ---
         "electron": { mass: "0.511 MeV/c²", charge: "-1 e", spin: "1/2" },
         "muon": { mass: "105.66 MeV/c²", charge: "-1 e", spin: "1/2" },
         "tau": { mass: "1776.8 MeV/c²", charge: "-1 e", spin: "1/2" },
-        "electron neutrino": { mass: "< 1 eV/c²", charge: "0", spin: "1/2" },
+        "electron neutrino": { mass: "< 1.0 eV/c²", charge: "0", spin: "1/2" },
         "muon neutrino": { mass: "< 0.17 MeV/c²", charge: "0", spin: "1/2" },
         "tau neutrino": { mass: "< 18.2 MeV/c²", charge: "0", spin: "1/2" },
         
-        // --- THE 5 BOSONS (Force Carriers) ---
+        // --- 3. GAUGE & SCALAR BOSONS (Force Carriers & Mass) ---
         "photon": { mass: "0 (Massless)", charge: "0", spin: "1" },
         "gluon": { mass: "0 (Massless)", charge: "0", spin: "1" },
         "w boson": { mass: "80.38 GeV/c²", charge: "±1 e", spin: "1" },
+        "w": { mass: "80.38 GeV/c²", charge: "±1 e", spin: "1" },
         "z boson": { mass: "91.19 GeV/c²", charge: "0", spin: "1" },
-        "higgs boson": { mass: "125.1 GeV/c²", charge: "0", spin: "0" },
-        "higgs": { mass: "125.1 GeV/c²", charge: "0", spin: "0" },
+        "z": { mass: "91.19 GeV/c²", charge: "0", spin: "1" },
+        "higgs boson": { mass: "125.25 GeV/c²", charge: "0", spin: "0" },
+        "higgs": { mass: "125.25 GeV/c²", charge: "0", spin: "0" },
+        "graviton": { mass: "0 (Theoretical)", charge: "0", spin: "2" },
 
-        // --- COMMON COMPOSITES (BARYONS & MESONS) ---
+        // --- 4. BARYONS (Nucleons & Deltas - Light Quarks) ---
         "proton": { mass: "938.27 MeV/c²", charge: "+1 e", spin: "1/2" },
         "neutron": { mass: "939.57 MeV/c²", charge: "0", spin: "1/2" },
-        "pion": { mass: "139.57 MeV/c²", charge: "±1 e or 0", spin: "0" }, 
-        "kaon": { mass: "493.67 MeV/c²", charge: "±1 e or 0", spin: "0" },
-        "rho meson": { mass: "775.26 MeV/c²", charge: "±1 e or 0", spin: "1" },
-        "j/psi meson": { mass: "3.096 GeV/c²", charge: "0", spin: "1" },
-        "omega baryon": { mass: "1672.4 MeV/c²", charge: "-1 e", spin: "3/2" },
-        "lambda baryon": { mass: "1115.6 MeV/c²", charge: "0", spin: "1/2" }
+        "delta": { mass: "1232 MeV/c²", charge: "++, +, 0, - e", spin: "3/2" },
+        "delta++": { mass: "1232 MeV/c²", charge: "+2 e", spin: "3/2" },
+
+        // --- 5. HYPERON BARYONS (Strange Quarks) ---
+        "lambda": { mass: "1115.68 MeV/c²", charge: "0", spin: "1/2" },
+        "sigma": { mass: "1189 - 1197 MeV/c²", charge: "+, 0, - e", spin: "1/2" },
+        "xi": { mass: "1314 - 1321 MeV/c²", charge: "0, - e", spin: "1/2" },
+        "omega": { mass: "1672.45 MeV/c²", charge: "-1 e", spin: "3/2" },
+
+        // --- 6. HEAVY BARYONS (Charmed & Bottom) ---
+        "lambda_c": { mass: "2286.46 MeV/c²", charge: "+1 e", spin: "1/2" },
+        "sigma_c": { mass: "2454 MeV/c²", charge: "++, +, 0 e", spin: "1/2" },
+        "xi_c": { mass: "2467 MeV/c²", charge: "+, 0 e", spin: "1/2" },
+        "omega_c": { mass: "2695 MeV/c²", charge: "0", spin: "1/2" },
+        "lambda_b": { mass: "5619.6 MeV/c²", charge: "0", spin: "1/2" },
+
+        // --- 7. MESONS (Pseudoscalar - Spin 0) ---
+        "pion": { mass: "139.57 MeV/c² (±), 134.97 (0)", charge: "+, -, 0 e", spin: "0" }, 
+        "kaon": { mass: "493.67 MeV/c² (±), 497.61 (0)", charge: "+, -, 0 e", spin: "0" },
+        "eta": { mass: "547.86 MeV/c²", charge: "0", spin: "0" },
+        "eta prime": { mass: "957.78 MeV/c²", charge: "0", spin: "0" },
+        "d": { mass: "1869 MeV/c² (±), 1864 (0)", charge: "+, -, 0 e", spin: "0" },
+        "b": { mass: "5279 MeV/c² (±), 5280 (0)", charge: "+, -, 0 e", spin: "0" },
+
+        // --- 8. VECTOR MESONS (Spin 1) ---
+        "rho": { mass: "775.26 MeV/c²", charge: "+, -, 0 e", spin: "1" },
+        "omega vector": { mass: "782.66 MeV/c²", charge: "0", spin: "1" },
+        "phi": { mass: "1019.46 MeV/c²", charge: "0", spin: "1" },
+        "j/psi": { mass: "3096.9 MeV/c²", charge: "0", spin: "1" },
+        "upsilon": { mass: "9460.3 MeV/c²", charge: "0", spin: "1" },
+
+        // --- 9. ANTIMATTER (Common Examples) ---
+        "positron": { mass: "0.511 MeV/c²", charge: "+1 e", spin: "1/2" },
+        "antiproton": { mass: "938.27 MeV/c²", charge: "-1 e", spin: "1/2" },
+        "antineutron": { mass: "939.57 MeV/c²", charge: "0", spin: "1/2" }
     };
 
-    // Auto-correct common shorthands
-    if (cleanQuery === "w") cleanQuery = "w boson";
-    if (cleanQuery === "z") cleanQuery = "z boson";
-    if (cleanQuery === "rho") cleanQuery = "rho meson";
+    // Auto-correct common shorthands missing from the cleaner
+    if (cleanQuery === "j psi") cleanQuery = "j/psi";
 
     return {
         name: query.toUpperCase(),
-        mass: particleMatrix[cleanQuery]?.mass || "ERR: Not in Database",
+        mass: particleMatrix[cleanQuery]?.mass || "ERR: Uncataloged Isotope/Resonance",
         charge: particleMatrix[cleanQuery]?.charge || "ERR: Unknown",
         spin: particleMatrix[cleanQuery]?.spin || "ERR: Unknown"
     };
