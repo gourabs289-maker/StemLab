@@ -74,39 +74,73 @@ async function fetchNasaAsteroidData() {
 }
 
 /* --------------------------------------------------------------------------
-   3. ENGINEERING: NIH PUBCHEM COMPUTATIONAL DATABASE
+   3. ENGINEERING: DUAL-ENGINE (NIH PUBCHEM + NATIVE MATERIALS PROJECT)
    -------------------------------------------------------------------------- */
 async function fetchMaterialProperties(query) {
-    // Direct, open pipeline to the US Gov database (No Proxies, No API Keys)
-    // Fetches Formula, Mass, and structural topology complexity
-    const targetUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query.trim())}/property/MolecularFormula,MolecularWeight,Complexity/JSON`;
+    // Set default error states
+    let result = {
+        formula: "ERR: Not Found", density: "ERR: Not Found",
+        volume: "ERR: Not Found", weight: "ERR: Not Found", complexity: "ERR: Not Found"
+    };
 
+    // --- ENGINE 1: NIH PUBCHEM (Always works on web, gets Mass & Complexity) ---
+    const pubchemUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query.trim())}/property/MolecularFormula,MolecularWeight,Complexity/JSON`;
     try {
-        const response = await fetch(targetUrl);
-
-        if (!response.ok) {
-            console.error("NIH API Error: Material not found or invalid name.");
-            return null;
+        const pubResponse = await fetch(pubchemUrl);
+        if (pubResponse.ok) {
+            const pubData = await pubResponse.json();
+            if (pubData.PropertyTable && pubData.PropertyTable.Properties.length > 0) {
+                result.formula = pubData.PropertyTable.Properties[0].MolecularFormula;
+                result.weight = pubData.PropertyTable.Properties[0].MolecularWeight;
+                result.complexity = pubData.PropertyTable.Properties[0].Complexity;
+            }
         }
+    } catch (e) { console.warn("PubChem fetch bypassed."); }
 
-        const data = await response.json();
-        
-        if (data.PropertyTable && data.PropertyTable.Properties.length > 0) {
-            const props = data.PropertyTable.Properties[0];
-            return {
-                formula: props.MolecularFormula,
-                weight: props.MolecularWeight,
-                complexity: props.Complexity
-            };
-        } else {
-            return null; 
-        }
+    // --- ENGINE 2: SMART TRANSLATOR & CACHE (Guarantees Density & Volume) ---
+    const elementMap = {
+        "iron": "Fe", "titanium": "Ti", "gold": "Au", "silver": "Ag",
+        "copper": "Cu", "aluminum": "Al", "carbon": "C", "oxygen": "O2",
+        "water": "H2O", "silicon": "Si", "silicon dioxide": "SiO2"
+    };
+    const localCache = {
+        "FE": { density: 7.874, volume: 11.78 }, "TI": { density: 4.506, volume: 17.65 },
+        "AU": { density: 19.30, volume: 16.95 }, "AG": { density: 10.49, volume: 17.06 },
+        "CU": { density: 8.960, volume: 11.81 }, "AL": { density: 2.70, volume: 16.60 },
+        "C": { density: 2.267, volume: 5.31 }, "SIO2": { density: 2.648, volume: 37.66 },
+        "SI": { density: 2.329, volume: 20.02 }, "H2O": { density: 1.00, volume: 29.92 }
+    };
 
-    } catch (error) {
-        console.error("NIH Fetch Error:", error);
-        return null;
+    let cleanQuery = query.trim().toLowerCase();
+    let targetFormula = elementMap[cleanQuery] || query.trim();
+    if (targetFormula.length <= 2) targetFormula = targetFormula.charAt(0).toUpperCase() + targetFormula.slice(1).toLowerCase();
+
+    // Apply indestructible cache for physical metrics
+    if (localCache[targetFormula.toUpperCase()]) {
+        result.density = localCache[targetFormula.toUpperCase()].density;
+        result.volume = localCache[targetFormula.toUpperCase()].volume;
+        if (result.formula === "ERR: Not Found") result.formula = targetFormula;
     }
+
+    // --- ENGINE 3: PURE NATIVE MATERIALS PROJECT (Overrides cache in Termux) ---
+    try {
+        const mpUrl = `https://api.materialsproject.org/materials/summary/?formula=${targetFormula}`;
+        const mpResponse = await fetch(mpUrl, { headers: { "X-API-KEY": API_CONFIG.MATERIALS_KEY } });
+        if (mpResponse.ok) {
+            const mpData = await mpResponse.json();
+            if (mpData.data && mpData.data.length > 0) {
+                result.density = mpData.data[0].density;
+                result.volume = mpData.data[0].volume;
+                result.formula = mpData.data[0].formula_pretty || result.formula;
+            }
+        }
+    } catch (e) { console.warn("Native Fetch skipped (Web CORS blocked). Cache active."); }
+
+    // If absolutely nothing was found, trigger UI error
+    if (result.formula === "ERR: Not Found" && result.weight === "ERR: Not Found" && result.density === "ERR: Not Found") return null;
+    return result;
 }
+
 
 /* --------------------------------------------------------------------------
    4. CHEMISTRY & ZOOLOGY: PUBCHEM
