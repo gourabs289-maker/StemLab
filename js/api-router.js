@@ -33,26 +33,68 @@ async function scanMathImage(imageFile) {
 }
 
 /* --------------------------------------------------------------------------
-   2. MACROPHYSICS: NASA NEO DATABASE
+   2. MATH TECH & GEOSPATIAL: LIVE TELEMETRY (NASA + USGS)
    -------------------------------------------------------------------------- */
-async function fetchNasaAsteroidData() {
-    const today = new Date().toISOString().split('T')[0];
-    const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API_CONFIG.NASA_KEY}`;
+async function fetchGeospatialData() {
+    let result = {
+        asteroidName: "Scanning Orbital Path...", asteroidVelocity: "ERR", asteroidMass: "ERR",
+        quakeMag: "Scanning Tectonic Plates...", quakeLocation: "ERR", quakeDepth: "ERR"
+    };
+
+    // --- ENGINE 1: NASA NEAR-EARTH OBJECTS (Orbital Telemetry) ---
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("NASA API Offline");
-        const data = await response.json();
-        const asteroids = data.near_earth_objects[today];
-        if (asteroids && asteroids.length > 0) {
-            return {
-                name: asteroids[0].name,
-                velocity_km_s: asteroids[0].close_approach_data[0].relative_velocity.kilometers_per_second,
-                estimated_mass_max_kg: asteroids[0].estimated_diameter.meters.estimated_diameter_max * 3000
-            };
+        const today = new Date().toISOString().split('T')[0];
+        const nasaUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API_CONFIG.NASA_KEY}`;
+        const nasaRes = await fetch(nasaUrl);
+        if (nasaRes.ok) {
+            const nasaData = await nasaRes.json();
+            const asteroids = nasaData.near_earth_objects[today];
+            if (asteroids && asteroids.length > 0) {
+                // Grab the first hazardous object in today's orbit
+                const ast = asteroids[0];
+                result.asteroidName = ast.name.toUpperCase();
+                result.asteroidVelocity = parseFloat(ast.close_approach_data[0].relative_velocity.kilometers_per_second).toFixed(2) + " km/s";
+                
+                // Calculate theoretical mass based on max diameter
+                const diameter = ast.estimated_diameter.meters.estimated_diameter_max;
+                result.asteroidMass = "~" + (diameter * 3000).toFixed(0) + " kg";
+            } else {
+                result.asteroidName = "CLEAR ORBIT";
+                result.asteroidVelocity = "0 km/s";
+                result.asteroidMass = "0 kg";
+            }
         }
-        return null;
-    } catch (error) { return null; }
+    } catch (e) { 
+        result.asteroidName = "ERR: NASA Uplink Failed"; 
+    }
+
+    // --- ENGINE 2: USGS EARTHQUAKE HAZARDS (Geophysics) ---
+    try {
+        // Fetch the largest earthquake in the world from the past 24 hours
+        const yesterday = new Date(Date.now() - 86400000).toISOString();
+        const usgsUrl = `${API_CONFIG.USGS_BASE}/query?format=geojson&starttime=${yesterday}&minmagnitude=4.5&limit=1&orderby=magnitude`;
+        
+        const usgsRes = await fetch(usgsUrl);
+        if (usgsRes.ok) {
+            const usgsData = await usgsRes.json();
+            if (usgsData.features && usgsData.features.length > 0) {
+                const quake = usgsData.features[0];
+                result.quakeMag = quake.properties.mag.toFixed(1) + " Magnitude";
+                result.quakeLocation = quake.properties.place.toUpperCase();
+                
+                // The third coordinate in GeoJSON is depth in kilometers
+                result.quakeDepth = quake.geometry.coordinates[2].toFixed(1) + " km";
+            } else {
+                result.quakeLocation = "NO MAJOR TECTONIC ACTIVITY";
+            }
+        }
+    } catch (e) { 
+        result.quakeLocation = "ERR: USGS Uplink Failed"; 
+    }
+
+    return result;
 }
+
 
 /* --------------------------------------------------------------------------
    3. ENGINEERING: DYNAMIC API CHAIN (NIH -> MATERIALS PROJECT)
@@ -326,7 +368,8 @@ async function fetchParticleData(query) {
     };
 }
 
-
 // Global Export
-window.StemAPI = { scanMathImage, fetchNasaAsteroidData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData };
+window.StemAPI = { scanMathImage, fetchGeospatialData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData };
+
+
 
