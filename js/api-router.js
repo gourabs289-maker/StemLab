@@ -182,9 +182,18 @@ async function fetchParticleData(query) {
         const targetUrl = `https://opendata.cern.ch/api/records/?page=1&size=1&q=${encodeURIComponent(query)}`;
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
         
-        const cernResponse = await fetch(proxyUrl);
+        let cernResponse;
         
-        if (cernResponse.ok) {
+        try {
+            // Attempt 1: Try connecting directly to CERN (Fastest route)
+            cernResponse = await fetch(targetUrl);
+            if (!cernResponse.ok) throw new Error("Direct Blocked");
+        } catch (directErr) {
+            // Attempt 2: If the browser blocks it, tunnel through the proxy
+            cernResponse = await fetch(proxyUrl);
+        }
+        
+        if (cernResponse && cernResponse.ok) {
             const cernData = await cernResponse.json();
             if (cernData.hits && cernData.hits.hits && cernData.hits.hits.length > 0) {
                 result.cernRecord = cernData.hits.hits[0].metadata.titles[0].title;
