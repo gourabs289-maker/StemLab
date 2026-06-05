@@ -1,1 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Chemistry</title>
+    
+    <link rel="stylesheet" href="../css/retro-theme.css">
+    
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <script src="../js/api-router.js"></script>
+
+    <style>
+        .scanner-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .scanner-modal.active { display: flex; }
+        .crop-container {
+            width: 90%; max-width: 500px; max-height: 60vh;
+            background: #111; border: 2px solid var(--accent-neon);
+            position: relative; overflow: hidden; margin-bottom: 20px;
+        }
+        .crop-container img { display: block; max-width: 100%; }
+        .laser-beam {
+            position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: #00ff00; box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00;
+            z-index: 100; pointer-events: none; display: none;
+            animation: scan-laser 2s linear infinite;
+        }
+        @keyframes scan-laser { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .modal-controls { display: flex; gap: 15px; width: 90%; max-width: 500px; }
+        .modal-controls button { flex: 1; font-weight: bold; letter-spacing: 1px; }
+        
+        /* Custom styling for the sketch-based inline builder */
+        .sketch-input { background: #111; color: #fff; border: 1px solid #444; padding: 8px; border-radius: 4px; }
+        .sketch-input:focus { border-color: var(--accent-neon); outline: none; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title">CHEMISTRY // MOLECULAR DATA DASHBOARD</h1>
+            <a href="../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-neon);">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">01 // HYBRID CHEMICAL DATABASE</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Fetch live molecular metrics from the NIH, or pull advanced atomic data from the internal quantum chemistry bank.
+            </p>
+            <div class="input-group">
+                <label>Chemical Compound or Element Name</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chem-input" value="Gold" style="width: 60%;">
+                    <button id="fetch-chem-btn" class="btn btn-primary" style="width: 40%;">SCAN DATABASE</button>
+                </div>
+            </div>
+            <div class="stem-grid">
+                <div class="input-group"><label>Molecular Weight</label><input type="text" id="chem-weight" readonly placeholder="Awaiting Link..."></div>
+                <div class="input-group"><label>Isotope Atom Count</label><input type="text" id="chem-isotopes" readonly placeholder="Awaiting Link..."></div>
+            </div>
+            <div class="stem-grid" style="margin-top: 15px;">
+                <div class="input-group"><label>Electron Configuration</label><input type="text" id="chem-config" readonly placeholder="Awaiting Link..."></div>
+                <div class="input-group"><label>Electronegativity</label><input type="text" id="chem-electro" readonly placeholder="Awaiting Link..."></div>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-bottom: 25px; border-color: var(--accent-neon);">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">02 // PREDICTIVE REACTION BUILDER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Build equations left-to-right. The engine will calculate the result.
+            </p>
+
+            <datalist id="chemical-dictionary">
+                <option value="Hydrogen (H2)">
+                <option value="Hydrogen (H)">
+                <option value="Helium (He)">
+                <option value="Hassium (Hs)">
+                <option value="Oxygen (O2)">
+                <option value="Oxygen (O)">
+                <option value="Ozone (O3)">
+                <option value="Osmium (Os)">
+                <option value="Water (H2O)">
+                <option value="Carbon Dioxide (CO2)">
+            </datalist>
+
+            <div id="sketch-builder-container" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px;">
+                
+                <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
+                <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+
+                <span class="plus-divider" style="color: var(--text-secondary); font-weight: bold; font-size: 1.2rem;">+</span>
+
+                <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
+                <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+
+                <button id="sketch-add-btn" class="btn" style="padding: 8px 15px; border: 1px dashed #555; background: transparent; color: #aaa; font-weight: bold;">ADD +</button>
+                <button id="sketch-enter-btn" class="btn btn-primary" style="padding: 8px 20px; font-weight: bold;">ENTER</button>
+            </div>
+
+            <div id="sketch-results-zone" style="display: none; align-items: stretch; gap: 10px; margin-top: 15px;">
+                <div id="sketch-final-equation" style="flex-grow: 1; background: #050505; border: 1px solid var(--accent-neon); color: var(--accent-neon); font-size: 1.3rem; font-family: monospace; font-weight: bold; display: flex; align-items: center; justify-content: center; padding: 15px; border-radius: 4px;">
+                    </div>
+                <button id="sketch-pdf-btn" class="btn" style="background: transparent; border: 1px solid #00ff00; color: #00ff00; font-weight: bold; padding: 0 20px; border-radius: 4px;">PDF</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title">03 // Workspace & Equation Scanner</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan a textbook diagram to solve stoichiometry or gas laws.
+            </p>
+            
+            <math-field id="chem-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">P V = n R T</math-field>
+            
+            <button id="compute-chem-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px; border-color: var(--accent-neon); color: var(--accent-neon); font-weight: bold; letter-spacing: 1px;">
+                COMPUTE / BALANCE EQUATION
+            </button>
+            
+            <div id="solution-container" class="input-group" style="display: none; margin-bottom: 15px;">
+                <label style="color: var(--accent-neon);">Computed Stoichiometry</label>
+                <input type="text" id="chem-solution" readonly style="color: var(--accent-neon); font-weight: bold; text-align: center; font-size: 1.2rem; background: #0a0a0a;">
+            </div>
+
+            <div class="upload-container">
+                <label class="upload-zone-label">
+                    <span>[+] UPLOAD / SCAN CHEMISTRY DIAGRAM</span>
+                    <input type="file" id="chem-ocr" class="hidden-file-input" accept="image/*">
+                </label>
+            </div>
+            <div id="chem-status" class="status-message" style="margin-top: 10px;"></div>
+        </section>
+    </div>
+
+    <div id="scanner-modal" class="scanner-modal">
+        <h2 style="color: var(--accent-neon); margin-bottom: 15px; font-family: monospace; letter-spacing: 2px;">SYS_CALIBRATE_CHEM</h2>
+        <div class="crop-container">
+            <img id="image-to-crop" src="">
+            <div id="laser-beam" class="laser-beam"></div>
+        </div>
+        <div class="modal-controls">
+            <button id="btn-cancel" class="btn btn-secondary" style="border-color: var(--alert-red); color: var(--alert-red);">CANCEL</button>
+            <button id="btn-scan" class="btn btn-primary" style="border-color: #00ff00; color: #00ff00;">SCAN DIAGRAM</button>
+        </div>
+        <div id="modal-status" style="margin-top: 15px; color: #00ff00; font-family: monospace; display: none;">INITIATING HUGGINGFACE UPLINK...</div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. CHEMISTRY DB LOGIC (SECTION 01)
+           ========================================================================== */
+        document.getElementById('fetch-chem-btn').addEventListener('click', async () => {
+            const compound = document.getElementById('chem-input').value;
+            const btn = document.getElementById('fetch-chem-btn');
+            btn.textContent = "SEARCHING...";
+            const data = await window.StemAPI.fetchChemicalData(compound);
+            if (data && data.MolecularWeight) {
+                document.getElementById('chem-weight').value = data.MolecularWeight;
+                document.getElementById('chem-isotopes').value = data.IsotopeAtomCount || "0";
+                document.getElementById('chem-config').value = data.ElectronConfiguration || "N/A";
+                document.getElementById('chem-electro').value = data.Electronegativity || "N/A";
+                btn.textContent = "COMPOUND FOUND";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+
+        /* ==========================================================================
+           2. DYNAMIC REACTION BUILDER LOGIC (SECTION 02)
+           ========================================================================== */
+        const builderContainer = document.getElementById('sketch-builder-container');
+        const addBtn = document.getElementById('sketch-add-btn');
+        const enterBtn = document.getElementById('sketch-enter-btn');
+        const resultsZone = document.getElementById('sketch-results-zone');
+        const finalEquationText = document.getElementById('sketch-final-equation');
+        const pdfBtn = document.getElementById('sketch-pdf-btn');
+
+        // "ADD +" Button Logic
+        addBtn.addEventListener('click', () => {
+            const plus = document.createElement('span');
+            plus.className = 'plus-divider';
+            plus.style.cssText = 'color: var(--text-secondary); font-weight: bold; font-size: 1.2rem;';
+            plus.textContent = '+';
+
+            const qty = document.createElement('input');
+            qty.type = 'number';
+            qty.className = 'chem-qty sketch-input';
+            qty.placeholder = 'Qty';
+            qty.min = '1';
+            qty.style.cssText = 'width: 60px; text-align: center;';
+
+            const name = document.createElement('input');
+            name.type = 'text';
+            name.className = 'chem-name sketch-input';
+            name.setAttribute('list', 'chemical-dictionary');
+            name.placeholder = 'Select...';
+            name.style.cssText = 'width: 140px;';
+
+            builderContainer.insertBefore(plus, addBtn);
+            builderContainer.insertBefore(qty, addBtn);
+            builderContainer.insertBefore(name, addBtn);
+        });
+
+        // "ENTER" Button Logic
+        enterBtn.addEventListener('click', () => {
+            const qtys = document.querySelectorAll('.chem-qty');
+            const names = document.querySelectorAll('.chem-name');
+            let formulaParts = [];
+
+            for(let i = 0; i < qtys.length; i++) {
+                let q = qtys[i].value.trim();
+                let n = names[i].value.trim();
+                
+                if(n !== "") {
+                    // Extract just the formula letters from the parenthesis
+                    let match = n.match(/\(([^)]+)\)/);
+                    let formula = match ? match[1] : n;
+                    formulaParts.push(q ? `${q}${formula}` : formula);
+                }
+            }
+
+            if(formulaParts.length === 0) return;
+
+            let inputString = formulaParts.join(' + ') + ' =';
+
+            resultsZone.style.display = 'flex';
+            finalEquationText.textContent = 'Processing...';
+            finalEquationText.style.color = "var(--text-secondary)";
+
+            setTimeout(() => {
+                let result = window.StemAPI.balanceEquation(inputString);
+                finalEquationText.textContent = result;
+                
+                if(result.includes("ERR")) {
+                    finalEquationText.style.color = "var(--alert-red)";
+                } else {
+                    finalEquationText.style.color = "var(--accent-neon)";
+                }
+            }, 500);
+        });
+
+        // "PDF" Button Logic
+        pdfBtn.addEventListener('click', () => {
+            const element = document.getElementById('sketch-results-zone');
+            const opt = {
+              margin:       0.5,
+              filename:     'STEM_Equation_Result.pdf',
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#050505' },
+              jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        });
+
+        /* ==========================================================================
+           3. OCR SCANNER & WORKSPACE LOGIC (SECTION 03)
+           ========================================================================== */
+        let cropper;
+        const fileInput = document.getElementById('chem-ocr');
+        const scannerModal = document.getElementById('scanner-modal');
+        const imageToCrop = document.getElementById('image-to-crop');
+        const laserBeam = document.getElementById('laser-beam');
+        const btnCancel = document.getElementById('btn-cancel');
+        const btnScan = document.getElementById('btn-scan');
+        const modalStatus = document.getElementById('modal-status');
+        const statusText = document.getElementById('chem-status');
+        const mathField = document.getElementById('chem-formula');
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imageToCrop.src = event.target.result;
+                scannerModal.classList.add('active');
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(imageToCrop, { viewMode: 1, autoCropArea: 0.8, background: false });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnCancel.addEventListener('click', () => {
+            scannerModal.classList.remove('active');
+            if (cropper) cropper.destroy();
+            fileInput.value = ""; 
+        });
+
+        btnScan.addEventListener('click', () => {
+            if (!cropper) return;
+            btnScan.disabled = true; btnCancel.disabled = true; cropper.disable();
+            laserBeam.style.display = 'block'; modalStatus.style.display = 'block';
+            modalStatus.textContent = "SYS_SCANNING: TRANSMITTING TO HUGGINGFACE...";
+
+            cropper.getCroppedCanvas().toBlob(async (blob) => {
+                const croppedFile = new File([blob], "chem_scan.jpg", { type: "image/jpeg" });
+                statusText.textContent = "SYS_STATUS: PROCESSING UPLINK...";
+                statusText.style.color = "var(--accent-amber)";
+                
+                const latexString = await window.StemAPI.scanMathImage(croppedFile);
+                
+                scannerModal.classList.remove('active'); laserBeam.style.display = 'none';
+                modalStatus.style.display = 'none'; btnScan.disabled = false; btnCancel.disabled = false;
+                fileInput.value = ""; 
+                
+                if (latexString && !latexString.includes("Error")) {
+                    statusText.textContent = "SYS_STATUS: EQUATION PARSED. CLICK COMPUTE.";
+                    statusText.style.color = "var(--accent-neon)";
+                    
+                    if (typeof mathField.setValue === "function") {
+                        mathField.setValue(latexString, { format: "ascii-math" });
+                    } else {
+                        mathField.value = latexString;
+                    }
+                } else {
+                    statusText.textContent = "SYS_ERROR: SCAN FAILED.";
+                    statusText.style.color = "var(--alert-red)";
+                }
+            }, 'image/jpeg');
+        });
+
+        // Workspace Compute Trigger
+        document.getElementById('compute-chem-btn').addEventListener('click', () => {
+            const solutionContainer = document.getElementById('solution-container');
+            const solutionBox = document.getElementById('chem-solution');
+            const btn = document.getElementById('compute-chem-btn');
+            
+            const equation = mathField.getValue('ascii-math') || mathField.value; 
+            if (!equation || equation.trim() === "") return;
+
+            solutionContainer.style.display = 'block';
+            solutionBox.value = "Computing matrix...";
+            btn.textContent = "BALANCING...";
+            
+            setTimeout(async () => {
+                const result = await window.StemAPI.balanceEquation(equation);
+                solutionBox.value = result;
+                
+                if (result.includes("ERR")) {
+                    solutionBox.style.color = "var(--alert-red)";
+                } else {
+                    solutionBox.style.color = "var(--accent-neon)";
+                }
+                btn.textContent = "COMPUTE / BALANCE EQUATION";
+            }, 600);
+        });
+    </script>
+</body>
+</html>
 
