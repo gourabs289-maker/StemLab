@@ -386,35 +386,124 @@ async function fetchParticleData(query) {
     };
 }
 
+
 /* --------------------------------------------------------------------------
-   7. STOICHIOMETRY: CHEMICAL EQUATION BALANCER
+   7. ALGORITHMIC STOICHIOMETRY: DYNAMIC EQUATION BALANCER
    -------------------------------------------------------------------------- */
 function balanceEquation(input) {
-    // Clean the input: make lowercase, remove spaces, and normalize arrows
-    let cleanInput = input.toLowerCase().replace(/\s+/g, '').replace('->', '=').replace('→', '=').replace('=', '');
+    // 1. Advanced LaTeX & Syntax Cleaner (Preserves Strict Casing)
+    let cleanInput = input.replace(/\s+/g, '')
+        .replace(/\\mathrm/g, '')
+        .replace(/\\text/g, '')
+        .replace(/\\/g, '')
+        .replace(/_/g, '')
+        .replace(/\^/g, '')
+        .replace(/{/g, '')
+        .replace(/}/g, '')
+        .replace('->', '=')
+        .replace('→', '='); 
     
-    // Offline Dictionary of Common Balanced Reactions
-    const reactions = {
-        "h2+o2": "2H₂ + O₂ → 2H₂O",
-        "o2+h2": "2H₂ + O₂ → 2H₂O",
-        "c+o2": "C + O₂ → CO₂",
-        "ch4+o2": "CH₄ + 2O₂ → CO₂ + 2H₂O",
-        "n2+h2": "N₂ + 3H₂ → 2NH₃",
-        "h2+n2": "N₂ + 3H₂ → 2NH₃",
-        "na+cl2": "2Na + Cl₂ → 2NaCl",
-        "fe+o2": "4Fe + 3O₂ → 2Fe₂O₃",
-        "h2o2": "2H₂O₂ → 2H₂O + O₂",
-        "hcl+naoh": "HCl + NaOH → NaCl + H₂O"
-    };
+    if (!cleanInput.includes('=')) return "ERR: Missing '=' or '→' delimiter.";
 
-    // Scan the dictionary for a match
-    for (let key in reactions) {
-        if (cleanInput.includes(key)) {
-            return reactions[key];
+    let sides = cleanInput.split('=');
+    if (sides.length !== 2) return "ERR: Invalid reaction syntax.";
+
+    let leftMols = sides[0].split('+');
+    let rightMols = sides[1].split('+');
+    let allMols = leftMols.concat(rightMols);
+    const numMols = allMols.length;
+
+    // Safety limit to prevent browser crashing on infinite loops
+    if (numMols < 2 || numMols > 7) return "ERR: Reaction complexity exceeds offline limits.";
+
+    // 2. Deep Atomic Parser (Expands Parentheses e.g., Ca(OH)2 -> CaO2H2)
+    function parseMolecule(mol) {
+        let counts = {};
+        let expanded = mol;
+        
+        while (/\(([^\)]+)\)([0-9]*)/.test(expanded)) {
+            expanded = expanded.replace(/\(([^\)]+)\)([0-9]*)/g, (match, inner, mult) => {
+                let m = parseInt(mult) || 1;
+                return inner.replace(/([A-Z][a-z]*)([0-9]*)/g, (m2, elem, count) => {
+                    return elem + ((parseInt(count) || 1) * m);
+                });
+            });
         }
+        
+        let regex = /([A-Z][a-z]*)([0-9]*)/g;
+        let match;
+        let hasElements = false;
+        while ((match = regex.exec(expanded)) !== null) {
+            hasElements = true;
+            let elem = match[1];
+            let count = match[2] ? parseInt(match[2]) : 1;
+            counts[elem] = (counts[elem] || 0) + count;
+        }
+        
+        if (!hasElements) throw new Error("Invalid structure");
+        return counts;
     }
+
+    let parsed;
+    try {
+        parsed = allMols.map(parseMolecule);
+    } catch(e) {
+        return "ERR: Unrecognizable atomic structure.";
+    }
+
+    // 3. Conservation of Mass Verification
+    let leftElems = new Set(), rightElems = new Set();
+    for (let i = 0; i < leftMols.length; i++) Object.keys(parsed[i]).forEach(e => leftElems.add(e));
+    for (let i = 0; i < rightMols.length; i++) Object.keys(parsed[leftMols.length + i]).forEach(e => rightElems.add(e));
     
-    return "ERR: Requires Matrix Alignment.";
+    let allElems = Array.from(new Set([...leftElems, ...rightElems]));
+    for (let e of allElems) {
+        if (!leftElems.has(e) || !rightElems.has(e)) return `ERR: Elemental mismatch (${e} missing).`;
+    }
+
+    // 4. Algebraic Matrix Solver (Iterative Brute Force)
+    const MAX_COEF = numMols <= 4 ? 30 : (numMols <= 5 ? 15 : 10);
+    let coeffs = new Array(numMols).fill(1);
+
+    function checkBalance() {
+        for (let e of allElems) {
+            let leftCount = 0, rightCount = 0;
+            for (let i = 0; i < leftMols.length; i++) leftCount += (parsed[i][e] || 0) * coeffs[i];
+            for (let i = 0; i < rightMols.length; i++) rightCount += (parsed[leftMols.length + i][e] || 0) * coeffs[leftMols.length + i];
+            if (leftCount !== rightCount) return false;
+        }
+        return true;
+    }
+
+    function solve(index) {
+        if (index === numMols) return checkBalance();
+        for (let i = 1; i <= MAX_COEF; i++) {
+            coeffs[index] = i;
+            if (solve(index + 1)) return true;
+        }
+        return false;
+    }
+
+    // 5. Build Subscripted Output String
+    if (solve(0)) {
+        const buildString = (mols, offset) => {
+            return mols.map((m, i) => {
+                let coef = coeffs[offset + i] === 1 ? "" : coeffs[offset + i];
+                let molStr = m.replace(/([A-Za-z\)])([0-9]+)/g, (match, p1, p2) => {
+                    const subs = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉'};
+                    return p1 + p2.split('').map(char => subs[char] || char).join('');
+                });
+                return coef + molStr;
+            }).join(" + ");
+        };
+
+        let finalLeft = buildString(leftMols, 0);
+        let finalRight = buildString(rightMols, leftMols.length);
+
+        return `${finalLeft} → ${finalRight}`;
+    }
+
+    return "ERR: Unable to resolve matrix constraints.";
 }
 
 
