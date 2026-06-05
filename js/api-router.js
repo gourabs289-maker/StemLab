@@ -147,39 +147,71 @@ async function fetchProteinData(query) {
 }
 
 /* --------------------------------------------------------------------------
-   6. PARTICLE PHYSICS: CERN OPEN DATA & STANDARD MODEL
+   6. PARTICLE PHYSICS: WIKIDATA UNIVERSAL KNOWLEDGE GRAPH
    -------------------------------------------------------------------------- */
 async function fetchParticleData(query) {
-    let cleanQuery = query.trim().toLowerCase();
-
-    const standardModel = {
-        "electron": { mass: "0.511 MeV/c²", charge: "-1 e", spin: "1/2" },
-        "muon": { mass: "105.66 MeV/c²", charge: "-1 e", spin: "1/2" },
-        "tau": { mass: "1776.8 MeV/c²", charge: "-1 e", spin: "1/2" },
-        "up quark": { mass: "2.2 MeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "down quark": { mass: "4.7 MeV/c²", charge: "-1/3 e", spin: "1/2" },
-        "charm quark": { mass: "1.28 GeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "strange quark": { mass: "96 MeV/c²", charge: "-1/3 e", spin: "1/2" },
-        "top quark": { mass: "173.1 GeV/c²", charge: "+2/3 e", spin: "1/2" },
-        "bottom quark": { mass: "4.18 GeV/c²", charge: "-1/3 e", spin: "1/2" },
-        "photon": { mass: "0 (Massless)", charge: "0", spin: "1" },
-        "gluon": { mass: "0 (Massless)", charge: "0", spin: "1" },
-        "w boson": { mass: "80.38 GeV/c²", charge: "±1 e", spin: "1" },
-        "z boson": { mass: "91.19 GeV/c²", charge: "0", spin: "1" },
-        "higgs boson": { mass: "125.1 GeV/c²", charge: "0", spin: "0" },
-        "higgs": { mass: "125.1 GeV/c²", charge: "0", spin: "0" }
-    };
-
     let result = {
         name: query.toUpperCase(),
-        mass: standardModel[cleanQuery]?.mass || "ERR: Not in Standard Model",
-        charge: standardModel[cleanQuery]?.charge || "ERR: Unknown",
-        spin: standardModel[cleanQuery]?.spin || "ERR: Unknown",
-        
+        mass: "ERR: Database Miss",
+        charge: "ERR: Database Miss",
+        spin: "ERR: Database Miss"
     };
+
+    try {
+        // Step 1: Hit the Universal Wikidata API to find the particle's universal Q-ID
+        const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query.trim())}&language=en&format=json&origin=*`;
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
+
+        if (searchData.search && searchData.search.length > 0) {
+            // Found the particle (e.g., Proton = Q22857)
+            const entityId = searchData.search[0].id;
+
+            // Step 2: Fetch the absolute physical properties using the Q-ID
+            const claimsUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
+            const claimsRes = await fetch(claimsUrl);
+            const claimsData = await claimsRes.json();
+            const claims = claimsData.entities[entityId].claims;
+
+            // --- Parse Invariant Mass (Wikidata Property: P2067) ---
+            if (claims.P2067 && claims.P2067[0].mainsnak.datavalue) {
+                let kgAmount = parseFloat(claims.P2067[0].mainsnak.datavalue.value.amount);
+                
+                // Wikidata strictly stores mass in SI kg. We convert this to Quantum MeV/c^2 using E=mc^2
+                // 1 kg = 5.6095886 * 10^29 MeV/c^2
+                let mev = kgAmount * 5.6095886e29;
+                
+                if (mev > 1000) {
+                    result.mass = (mev / 1000).toFixed(3) + " GeV/c²";
+                } else if (mev > 0) {
+                    result.mass = mev.toFixed(3) + " MeV/c²";
+                } else {
+                    result.mass = "0 (Massless)";
+                }
+            }
+
+            // --- Parse Electric Charge (Wikidata Property: P1148) ---
+            if (claims.P1148 && claims.P1148[0].mainsnak.datavalue) {
+                let charge = parseFloat(claims.P1148[0].mainsnak.datavalue.value.amount);
+                result.charge = (charge > 0 ? "+" + charge : charge) + " e";
+            }
+
+            // --- Parse Quantum Spin (Wikidata Property: P1120) ---
+            if (claims.P1120 && claims.P1120[0].mainsnak.datavalue) {
+                let spinData = claims.P1120[0].mainsnak.datavalue.value;
+                // Spin can be stored as an amount or a string (like "+1/2")
+                let spinStr = spinData.amount ? parseFloat(spinData.amount).toString() : spinData.toString();
+                // Strip out formatting artifacts for a clean UI
+                result.spin = spinStr.replace('+', ''); 
+            }
+        }
+    } catch (error) {
+        console.warn("Wikidata Connection Failed.", error);
+    }
 
     return result;
 }
+
 
 // Global Export
 window.StemAPI = { scanMathImage, fetchNasaAsteroidData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData };
