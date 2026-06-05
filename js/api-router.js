@@ -18,19 +18,37 @@ const API_CONFIG = {
    1. UNIVERSAL IMAGE SCANNER (Hugging Face Math OCR)
    -------------------------------------------------------------------------- */
 async function scanMathImage(imageFile) {
-    const API_URL = "https://api-inference.huggingface.co/models/stepfun-ai/GOT-OCR2_0"; 
+    // Swapped to Microsoft TrOCR: Lightweight, fast, and stable on free-tier servers
+    const API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed"; 
+    
     try {
         const fileData = await imageFile.arrayBuffer();
         const response = await fetch(API_URL, {
             method: "POST",
-            headers: { "Authorization": `Bearer ${API_CONFIG.getHFToken()}`, "Content-Type": "application/octet-stream" },
+            headers: { 
+                "Authorization": `Bearer ${API_CONFIG.getHFToken()}`, 
+                "Content-Type": "application/octet-stream" 
+            },
             body: fileData
         });
-        if (!response.ok) throw new Error("OCR Scan Failed");
+        
         const result = await response.json();
+
+        // Smart Handling: Free tier AI models go to sleep. If it's waking up, tell the user!
+        if (result.error && result.estimated_time) {
+            return `Error: AI waking up. Try again in ${Math.round(result.estimated_time)}s`;
+        }
+        
+        if (!response.ok) throw new Error("OCR Scan Failed");
+        
+        // TrOCR returns the text inside 'generated_text'
         return result[0]?.generated_text || "Error: Could not parse equation";
-    } catch (error) { return null; }
+        
+    } catch (error) { 
+        return "Error: Uplink to AI severed."; 
+    }
 }
+
 
 /* --------------------------------------------------------------------------
    2. MATH TECH & GEOSPATIAL: LIVE TELEMETRY (NASA + USGS)
@@ -368,8 +386,40 @@ async function fetchParticleData(query) {
     };
 }
 
+/* --------------------------------------------------------------------------
+   7. STOICHIOMETRY: CHEMICAL EQUATION BALANCER
+   -------------------------------------------------------------------------- */
+function balanceEquation(input) {
+    // Clean the input: make lowercase, remove spaces, and normalize arrows
+    let cleanInput = input.toLowerCase().replace(/\s+/g, '').replace('->', '=').replace('→', '=').replace('=', '');
+    
+    // Offline Dictionary of Common Balanced Reactions
+    const reactions = {
+        "h2+o2": "2H₂ + O₂ → 2H₂O",
+        "o2+h2": "2H₂ + O₂ → 2H₂O",
+        "c+o2": "C + O₂ → CO₂",
+        "ch4+o2": "CH₄ + 2O₂ → CO₂ + 2H₂O",
+        "n2+h2": "N₂ + 3H₂ → 2NH₃",
+        "h2+n2": "N₂ + 3H₂ → 2NH₃",
+        "na+cl2": "2Na + Cl₂ → 2NaCl",
+        "fe+o2": "4Fe + 3O₂ → 2Fe₂O₃",
+        "h2o2": "2H₂O₂ → 2H₂O + O₂",
+        "hcl+naoh": "HCl + NaOH → NaCl + H₂O"
+    };
+
+    // Scan the dictionary for a match
+    for (let key in reactions) {
+        if (cleanInput.includes(key)) {
+            return reactions[key];
+        }
+    }
+    
+    return "ERR: Requires Matrix Alignment.";
+}
+
+
 // Global Export
-window.StemAPI = { scanMathImage, fetchGeospatialData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData };
+window.StemAPI = { scanMathImage, fetchGeospatialData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData, balanceEquation };
 
 
 
