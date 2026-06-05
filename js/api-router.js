@@ -147,7 +147,7 @@ async function fetchProteinData(query) {
 }
 
 /* --------------------------------------------------------------------------
-   6. PARTICLE PHYSICS: WIKIDATA UNIVERSAL KNOWLEDGE GRAPH
+   6. PARTICLE PHYSICS: WIKIDATA UNIVERSAL ENGINE (SMART LOOP)
    -------------------------------------------------------------------------- */
 async function fetchParticleData(query) {
     let result = {
@@ -158,59 +158,67 @@ async function fetchParticleData(query) {
     };
 
     try {
-        // Step 1: Hit the Universal Wikidata API to find the particle's universal Q-ID
         const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query.trim())}&language=en&format=json&origin=*`;
         const searchRes = await fetch(searchUrl);
         const searchData = await searchRes.json();
 
         if (searchData.search && searchData.search.length > 0) {
-            // Found the particle (e.g., Proton = Q22857)
-            const entityId = searchData.search[0].id;
+            
+            // SMART LOOP: Check the top 5 results. 
+            // This skips software (Electron) or cars (Proton) and finds the real science particle.
+            for (let i = 0; i < Math.min(5, searchData.search.length); i++) {
+                const entityId = searchData.search[i].id;
+                const claimsUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
+                const claimsRes = await fetch(claimsUrl);
+                const claimsData = await claimsRes.json();
+                const claims = claimsData.entities[entityId].claims;
 
-            // Step 2: Fetch the absolute physical properties using the Q-ID
-            const claimsUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
-            const claimsRes = await fetch(claimsUrl);
-            const claimsData = await claimsRes.json();
-            const claims = claimsData.entities[entityId].claims;
+                // If it doesn't have a mass property (P2067), it is NOT a physical particle. Skip it!
+                if (!claims.P2067) continue;
 
-            // --- Parse Invariant Mass (Wikidata Property: P2067) ---
-            if (claims.P2067 && claims.P2067[0].mainsnak.datavalue) {
-                let kgAmount = parseFloat(claims.P2067[0].mainsnak.datavalue.value.amount);
+                // --- We found the real physical object! Extract the Data ---
                 
-                // Wikidata strictly stores mass in SI kg. We convert this to Quantum MeV/c^2 using E=mc^2
-                // 1 kg = 5.6095886 * 10^29 MeV/c^2
-                let mev = kgAmount * 5.6095886e29;
-                
-                if (mev > 1000) {
-                    result.mass = (mev / 1000).toFixed(3) + " GeV/c²";
-                } else if (mev > 0) {
-                    result.mass = mev.toFixed(3) + " MeV/c²";
-                } else {
-                    result.mass = "0 (Massless)";
+                // 1. Invariant Mass
+                if (claims.P2067[0].mainsnak.datavalue) {
+                    let amountStr = claims.P2067[0].mainsnak.datavalue.value.amount;
+                    let amount = parseFloat(amountStr);
+                    
+                    // Convert kg to MeV/c^2. If already large, assume it's AMU or MeV.
+                    let mev = amount < 1e-20 ? amount * 5.6095886e29 : amount; 
+                    
+                    if (mev > 1000) result.mass = (mev / 1000).toFixed(3) + " GeV/c²";
+                    else if (mev > 0) result.mass = mev.toFixed(3) + " MeV/c²";
+                    else result.mass = "0 (Massless)";
                 }
-            }
 
-            // --- Parse Electric Charge (Wikidata Property: P1148) ---
-            if (claims.P1148 && claims.P1148[0].mainsnak.datavalue) {
-                let charge = parseFloat(claims.P1148[0].mainsnak.datavalue.value.amount);
-                result.charge = (charge > 0 ? "+" + charge : charge) + " e";
-            }
+                // 2. Electric Charge
+                if (claims.P1148 && claims.P1148[0].mainsnak.datavalue) {
+                    let charge = parseFloat(claims.P1148[0].mainsnak.datavalue.value.amount);
+                    result.charge = (charge > 0 ? "+" + charge : charge) + " e";
+                } else {
+                    result.charge = "0 e"; // Neutral fallback for particles like Neutrons
+                }
 
-            // --- Parse Quantum Spin (Wikidata Property: P1120) ---
-            if (claims.P1120 && claims.P1120[0].mainsnak.datavalue) {
-                let spinData = claims.P1120[0].mainsnak.datavalue.value;
-                // Spin can be stored as an amount or a string (like "+1/2")
-                let spinStr = spinData.amount ? parseFloat(spinData.amount).toString() : spinData.toString();
-                // Strip out formatting artifacts for a clean UI
-                result.spin = spinStr.replace('+', ''); 
+                // 3. Quantum Spin
+                if (claims.P1120 && claims.P1120[0].mainsnak.datavalue) {
+                    let spinVal = claims.P1120[0].mainsnak.datavalue.value;
+                    let spinStr = spinVal.amount ? parseFloat(spinVal.amount).toString() : spinVal.toString();
+                    result.spin = spinStr.replace('+', '');
+                } else {
+                    result.spin = "0"; // Fallback for spinless particles like Higgs
+                }
+
+                // We successfully loaded a physical particle. Break the loop so it stops searching!
+                break; 
             }
         }
     } catch (error) {
-        console.warn("Wikidata Connection Failed.", error);
+        console.warn("Wikidata Engine Failed.", error);
     }
 
     return result;
 }
+
 
 
 // Global Export
