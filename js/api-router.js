@@ -219,10 +219,12 @@ async function fetchParticleData(query) {
         cernRecord: "Searching Archives..."
     };
 
-    // Live connection to CERN Open Data API for collision datasets
+    // Live connection to CERN Open Data API wrapped in a proxy bypass
     try {
-        const cernUrl = `https://opendata.cern.ch/api/records/?page=1&size=1&q=${encodeURIComponent(query)}`;
-        const cernResponse = await fetch(cernUrl);
+        const targetUrl = `https://opendata.cern.ch/api/records/?page=1&size=1&q=${encodeURIComponent(query)}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+        
+        const cernResponse = await fetch(proxyUrl);
         
         if (cernResponse.ok) {
             const cernData = await cernResponse.json();
@@ -235,12 +237,9 @@ async function fetchParticleData(query) {
             result.cernRecord = "ERR: CERN API Blocked";
         }
     } catch (error) {
-        result.cernRecord = "ERR: Connection Failed";
+        result.cernRecord = "ERR: Proxy Connection Failed";
     }
 
     return result;
 }
-
-// Global Export
-window.StemAPI = { scanMathImage, fetchNasaAsteroidData, fetchMaterialProperties, fetchChemicalData, fetchProteinData, fetchParticleData };
 
