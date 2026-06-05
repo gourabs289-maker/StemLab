@@ -1,1 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Biology Hub</title>
+    
+    <link rel="stylesheet" href="../../css/retro-theme.css">
+    <script src="../../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: var(--accent-neon);">BIOLOGY // LIFE SCIENCES MASTER HUB</h1>
+            <a href="../../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Main Matrix</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: var(--accent-neon);">
+            <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">01 // HYBRID BIOINFORMATICS SCANNER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Fetch fundamental cellular structures from the internal matrix, or extract live genomic genes and amino acid sequences from the UniProt database.
+            </p>
+            
+            <div class="input-group">
+                <label>Biological Target (e.g., DNA, Mitochondria, Insulin, Hemoglobin)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="bio-input" value="DNA" style="width: 60%;">
+                    <button id="fetch-bio-btn" class="btn btn-primary" style="width: 40%;">SCAN DATABANKS</button>
+                </div>
+            </div>
+            
+            <div class="stem-grid">
+                <div class="input-group">
+                    <label>Target Designation</label>
+                    <input type="text" id="bio-name" readonly placeholder="Awaiting Link...">
+                </div>
+                <div class="input-group">
+                    <label>Taxonomy / Organism</label>
+                    <input type="text" id="bio-organism" readonly placeholder="Awaiting Link...">
+                </div>
+            </div>
+
+            <div class="stem-grid" style="margin-top: 15px;">
+                <div class="input-group">
+                    <label>Encoding Gene / Class</label>
+                    <input type="text" id="bio-gene" readonly placeholder="Awaiting Link...">
+                </div>
+                <div class="input-group">
+                    <label>Molecular Mass</label>
+                    <input type="text" id="bio-mass" readonly placeholder="Awaiting Link...">
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 15px;">
+                <label>Biological Sequence / Structure</label>
+                <textarea id="bio-sequence" readonly placeholder="Awaiting Link..." style="width: 100%; height: 80px; background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px; font-family: monospace; resize: vertical;"></textarea>
+            </div>
+        </section>
+
+        <main class="stem-grid">
+            
+            <article class="panel">
+                <h3 class="panel-title" style="border-left-color: var(--accent-blue);">02 // CELLULAR BIOLOGY</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                    Analyze protein sequences, enzyme kinetics, and cellular thermodynamics.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="cellular.html" class="btn btn-secondary" style="text-decoration: none; width: 100%;">Initialize Cellular Lab</a>
+                </div>
+            </article>
+
+            <article class="panel">
+                <h3 class="panel-title" style="border-left-color: var(--alert-red);">03 // MICROBIOLOGY</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                    Track pathogen mutations, bacterial growth matrices, and viral load equations.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="microbiology.html" class="btn btn-primary" style="border-color: var(--alert-red); color: var(--alert-red); text-decoration: none; width: 100%;">Initialize Microbio Lab</a>
+                </div>
+            </article>
+
+            <article class="panel">
+                <h3 class="panel-title" style="border-left-color: var(--accent-neon);">04 // BOTANY & PLANT SCI</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                    Calculate photosynthetic rates, environmental impact, and plant genomics.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="botany.html" class="btn btn-primary" style="text-decoration: none; width: 100%;">Initialize Botany Lab</a>
+                </div>
+            </article>
+
+            <article class="panel">
+                <h3 class="panel-title" style="border-left-color: var(--accent-amber);">05 // ZOOLOGY</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                    Analyze animal taxonomy, venom chemical compositions, and population genetics.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="zoology.html" class="btn btn-primary" style="border-color: var(--accent-amber); color: var(--accent-amber); text-decoration: none; width: 100%;">Initialize Zoology Lab</a>
+                </div>
+            </article>
+
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('fetch-bio-btn').addEventListener('click', async () => {
+            const target = document.getElementById('bio-input').value;
+            const nameBox = document.getElementById('bio-name');
+            const orgBox = document.getElementById('bio-organism');
+            const geneBox = document.getElementById('bio-gene');
+            const massBox = document.getElementById('bio-mass');
+            const seqBox = document.getElementById('bio-sequence');
+            const btn = document.getElementById('fetch-bio-btn');
+            
+            btn.textContent = "SEARCHING DATABANKS...";
+            nameBox.value = "Scanning...";
+            orgBox.value = "Scanning...";
+            geneBox.value = "Scanning...";
+            massBox.value = "Scanning...";
+            seqBox.value = "Extracting sequence data...";
+            
+            const data = await window.StemAPI.fetchProteinData(target);
+            
+            if (data) {
+                nameBox.value = data.protein.recommendedName.fullName.value;
+                orgBox.value = data.organism.name.scientific;
+                geneBox.value = data.gene || "N/A";
+                
+                // Format mass to be readable
+                if (data.sequence.mass > 0) {
+                    massBox.value = data.sequence.mass + " Daltons";
+                } else {
+                    massBox.value = data.sequence.mass; // Falls back to offline string
+                }
+                
+                seqBox.value = data.sequence.value;
+                
+                btn.textContent = "TARGET ISOLATED";
+                btn.style.color = "var(--accent-neon)";
+            } else {
+                nameBox.value = "ERR: Not Found";
+                orgBox.value = "ERR: Not Found";
+                geneBox.value = "ERR: Not Found";
+                massBox.value = "ERR: Not Found";
+                seqBox.value = "ERR: Database miss.";
+                
+                btn.textContent = "SEARCH FAILED";
+                btn.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
 
