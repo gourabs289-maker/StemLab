@@ -28,10 +28,7 @@
                 <input type="text" id="quantum-input" value="Higgs Boson" style="width: 100%; text-align: center; font-size: 1.1rem; padding: 10px;" placeholder="Enter particle name...">
             </div>
             
-            <div class="input-group">
-                <label>Latest CERN Dataset Record</label>
-                <input type="text" id="cern-out" readonly placeholder="Awaiting Search..." style="font-size: 0.8rem;">
-            </div>
+            
             
             <div class="stem-grid" style="margin-top: 10px;">
                 <div class="input-group">
@@ -71,14 +68,14 @@
     <script>
         document.getElementById('fetch-quantum-btn').addEventListener('click', async () => {
             const query = document.getElementById('quantum-input').value;
-            const cernBox = document.getElementById('cern-out');
+        
             const massBox = document.getElementById('quantum-mass');
             const chargeBox = document.getElementById('quantum-charge');
             const spinBox = document.getElementById('quantum-spin');
             const btn = document.getElementById('fetch-quantum-btn');
             
             btn.textContent = "QUERYING CERN ARCHIVES...";
-            cernBox.value = "Fetching API...";
+            
             massBox.value = "Scanning...";
             chargeBox.value = "Scanning...";
             spinBox.value = "Scanning...";
@@ -86,7 +83,7 @@
             const data = await window.StemAPI.fetchParticleData(query);
             
             if (data) {
-                cernBox.value = data.cernRecord;
+                
                 massBox.value = data.mass;
                 chargeBox.value = data.charge;
                 spinBox.value = data.spin;
