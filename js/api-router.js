@@ -175,37 +175,8 @@ async function fetchParticleData(query) {
         mass: standardModel[cleanQuery]?.mass || "ERR: Not in Standard Model",
         charge: standardModel[cleanQuery]?.charge || "ERR: Unknown",
         spin: standardModel[cleanQuery]?.spin || "ERR: Unknown",
-        cernRecord: "Searching Archives..."
+        
     };
-
-    try {
-        const targetUrl = `https://opendata.cern.ch/api/records/?page=1&size=1&q=${encodeURIComponent(query)}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-        
-        let cernResponse;
-        
-        try {
-            // Attempt 1: Try connecting directly to CERN (Fastest route)
-            cernResponse = await fetch(targetUrl);
-            if (!cernResponse.ok) throw new Error("Direct Blocked");
-        } catch (directErr) {
-            // Attempt 2: If the browser blocks it, tunnel through the proxy
-            cernResponse = await fetch(proxyUrl);
-        }
-        
-        if (cernResponse && cernResponse.ok) {
-            const cernData = await cernResponse.json();
-            if (cernData.hits && cernData.hits.hits && cernData.hits.hits.length > 0) {
-                result.cernRecord = cernData.hits.hits[0].metadata.titles[0].title;
-            } else {
-                result.cernRecord = "No matching collision records found.";
-            }
-        } else {
-            result.cernRecord = "ERR: CERN API Blocked";
-        }
-    } catch (error) {
-        result.cernRecord = "ERR: Proxy Connection Failed";
-    }
 
     return result;
 }
