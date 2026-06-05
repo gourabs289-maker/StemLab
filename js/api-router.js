@@ -172,24 +172,67 @@ async function fetchChemicalData(compoundName) {
 }
 
 /* --------------------------------------------------------------------------
-   5. BIOLOGY MASTER HUB: UNIPROT SMART SEARCH ENGINE
+   5. BIOLOGY MASTER HUB: HYBRID BIOINFORMATICS ENGINE
    -------------------------------------------------------------------------- */
 async function fetchProteinData(query) {
+    let cleanQuery = query.trim().toLowerCase();
+
+    // NEW ADDITION: Premium Offline Cellular & Genetic Bank for non-protein fundamentals
+    const bioBank = {
+        "dna": { name: "Deoxyribonucleic Acid", organism: "Universal (Cellular Life)", length: "Millions of base pairs", mass: "Variable", sequence: "Double Helix (Adenine, Thymine, Cytosine, Guanine)" },
+        "rna": { name: "Ribonucleic Acid", organism: "Universal", length: "Variable", mass: "Variable", sequence: "Single Strand (Adenine, Uracil, Cytosine, Guanine)" },
+        "mrna": { name: "Messenger RNA", organism: "Universal", length: "Variable", mass: "Variable", sequence: "Transcript encoding a specific protein" },
+        "atp": { name: "Adenosine Triphosphate", organism: "Universal", length: "1 Molecule", mass: "507.18 Da", sequence: "Adenine base + Ribose sugar + 3 Phosphate groups" },
+        "mitochondria": { name: "Mitochondrion (Organelle)", organism: "Eukaryotes", length: "Has independent circular mtDNA", mass: "Whole Organelle", sequence: "Cellular power plant; oxidative phosphorylation" },
+        "ribosome": { name: "Ribosome (Macromolecular Machine)", organism: "Universal", length: "rRNA + Protein Complex", mass: "2.5 - 4.2 MDa", sequence: "Site of biological protein synthesis (translation)" },
+        "crispr": { name: "CRISPR-Cas9 System", organism: "Bacteria / Archaea", length: "Variable guide RNA", mass: "Complex", sequence: "Clustered Regularly Interspaced Short Palindromic Repeats" },
+        "chloroplast": { name: "Chloroplast (Organelle)", organism: "Plants / Algae", length: "Has independent cpDNA", mass: "Whole Organelle", sequence: "Photosynthetic organelle containing chlorophyll" }
+    };
+
+    // If the user typed a core biological molecule, pull from the offline bank
+    if (bioBank[cleanQuery]) {
+        return {
+            id: "BIO-BANK",
+            protein: { recommendedName: { fullName: { value: bioBank[cleanQuery].name } } },
+            organism: { name: { scientific: bioBank[cleanQuery].organism, common: "Core Biology" } },
+            sequence: { value: bioBank[cleanQuery].sequence, length: bioBank[cleanQuery].length, mass: bioBank[cleanQuery].mass },
+            gene: "N/A (Fundamental Structure)" // New field for the UI upgrade
+        };
+    }
+
+    // ORIGINAL DATA PRESERVED: If it is a specific protein, fetch the raw sequence from UniProt
     const url = `${API_CONFIG.UNIPROT_BASE}/search?query=${encodeURIComponent(query)}&size=1`;
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error("UniProt API Offline");
         const data = await response.json();
+        
+        // If the API finds nothing, return null so the UI can show an error
         if (!data.results || data.results.length === 0) return null; 
+        
         const protein = data.results[0];
+        
+        // PREMIUM UPGRADE: Extract the exact Gene Name that codes for this protein
+        let targetGene = "Uncataloged Gene";
+        if (protein.genes && protein.genes.length > 0 && protein.genes[0].geneName) {
+            targetGene = protein.genes[0].geneName.value;
+        }
+
+        // Returning your exact original data structure, safely updated with the new Gene field
         return {
             id: protein.primaryAccession,
             protein: { recommendedName: { fullName: { value: protein.proteinDescription?.recommendedName?.fullName?.value || protein.proteinDescription?.submissionNames?.[0]?.fullName?.value || "Uncharacterized Protein" } } },
             organism: { name: { scientific: protein.organism?.scientificName || "Unknown", common: protein.organism?.commonName || "" } },
-            sequence: { value: protein.sequence?.value || "", length: protein.sequence?.length || 0, mass: protein.sequence?.molWeight || 0 }
+            sequence: { 
+                value: protein.sequence?.value || "Sequence data unavailable", 
+                length: protein.sequence?.length || 0, 
+                mass: protein.sequence?.molWeight || 0 
+            },
+            gene: targetGene // New field
         };
     } catch (error) { return null; }
 }
+
 
 /* --------------------------------------------------------------------------
    6. PARTICLE PHYSICS: THE ULTIMATE NUCLEAR DATABANK
