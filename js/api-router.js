@@ -147,78 +147,61 @@ async function fetchProteinData(query) {
 }
 
 /* --------------------------------------------------------------------------
-   6. PARTICLE PHYSICS: WIKIDATA UNIVERSAL ENGINE (SMART LOOP)
+   6. PARTICLE PHYSICS: EXPANDED STANDARD MODEL & HADRON DATABANK
    -------------------------------------------------------------------------- */
 async function fetchParticleData(query) {
-    let result = {
-        name: query.toUpperCase(),
-        mass: "ERR: Database Miss",
-        charge: "ERR: Database Miss",
-        spin: "ERR: Database Miss"
+    // Smart String Cleaner: Lowercase, trim, and remove trailing 's' to handle plurals (e.g., "pions" -> "pion")
+    let cleanQuery = query.trim().toLowerCase().replace(/s$/, '');
+
+    // The Ultimate Offline Matrix: 17 Fundamentals + Major Composites
+    const particleMatrix = {
+        // --- THE 6 QUARKS ---
+        "up quark": { mass: "2.2 MeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "down quark": { mass: "4.7 MeV/c²", charge: "-1/3 e", spin: "1/2" },
+        "charm quark": { mass: "1.28 GeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "strange quark": { mass: "96 MeV/c²", charge: "-1/3 e", spin: "1/2" },
+        "top quark": { mass: "173.1 GeV/c²", charge: "+2/3 e", spin: "1/2" },
+        "bottom quark": { mass: "4.18 GeV/c²", charge: "-1/3 e", spin: "1/2" },
+        
+        // --- THE 6 LEPTONS ---
+        "electron": { mass: "0.511 MeV/c²", charge: "-1 e", spin: "1/2" },
+        "muon": { mass: "105.66 MeV/c²", charge: "-1 e", spin: "1/2" },
+        "tau": { mass: "1776.8 MeV/c²", charge: "-1 e", spin: "1/2" },
+        "electron neutrino": { mass: "< 1 eV/c²", charge: "0", spin: "1/2" },
+        "muon neutrino": { mass: "< 0.17 MeV/c²", charge: "0", spin: "1/2" },
+        "tau neutrino": { mass: "< 18.2 MeV/c²", charge: "0", spin: "1/2" },
+        
+        // --- THE 5 BOSONS (Force Carriers) ---
+        "photon": { mass: "0 (Massless)", charge: "0", spin: "1" },
+        "gluon": { mass: "0 (Massless)", charge: "0", spin: "1" },
+        "w boson": { mass: "80.38 GeV/c²", charge: "±1 e", spin: "1" },
+        "z boson": { mass: "91.19 GeV/c²", charge: "0", spin: "1" },
+        "higgs boson": { mass: "125.1 GeV/c²", charge: "0", spin: "0" },
+        "higgs": { mass: "125.1 GeV/c²", charge: "0", spin: "0" },
+
+        // --- COMMON COMPOSITES (BARYONS & MESONS) ---
+        "proton": { mass: "938.27 MeV/c²", charge: "+1 e", spin: "1/2" },
+        "neutron": { mass: "939.57 MeV/c²", charge: "0", spin: "1/2" },
+        "pion": { mass: "139.57 MeV/c²", charge: "±1 e or 0", spin: "0" }, 
+        "kaon": { mass: "493.67 MeV/c²", charge: "±1 e or 0", spin: "0" },
+        "rho meson": { mass: "775.26 MeV/c²", charge: "±1 e or 0", spin: "1" },
+        "j/psi meson": { mass: "3.096 GeV/c²", charge: "0", spin: "1" },
+        "omega baryon": { mass: "1672.4 MeV/c²", charge: "-1 e", spin: "3/2" },
+        "lambda baryon": { mass: "1115.6 MeV/c²", charge: "0", spin: "1/2" }
     };
 
-    try {
-        const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query.trim())}&language=en&format=json&origin=*`;
-        const searchRes = await fetch(searchUrl);
-        const searchData = await searchRes.json();
+    // Auto-correct common shorthands
+    if (cleanQuery === "w") cleanQuery = "w boson";
+    if (cleanQuery === "z") cleanQuery = "z boson";
+    if (cleanQuery === "rho") cleanQuery = "rho meson";
 
-        if (searchData.search && searchData.search.length > 0) {
-            
-            // SMART LOOP: Check the top 5 results. 
-            // This skips software (Electron) or cars (Proton) and finds the real science particle.
-            for (let i = 0; i < Math.min(5, searchData.search.length); i++) {
-                const entityId = searchData.search[i].id;
-                const claimsUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
-                const claimsRes = await fetch(claimsUrl);
-                const claimsData = await claimsRes.json();
-                const claims = claimsData.entities[entityId].claims;
-
-                // If it doesn't have a mass property (P2067), it is NOT a physical particle. Skip it!
-                if (!claims.P2067) continue;
-
-                // --- We found the real physical object! Extract the Data ---
-                
-                // 1. Invariant Mass
-                if (claims.P2067[0].mainsnak.datavalue) {
-                    let amountStr = claims.P2067[0].mainsnak.datavalue.value.amount;
-                    let amount = parseFloat(amountStr);
-                    
-                    // Convert kg to MeV/c^2. If already large, assume it's AMU or MeV.
-                    let mev = amount < 1e-20 ? amount * 5.6095886e29 : amount; 
-                    
-                    if (mev > 1000) result.mass = (mev / 1000).toFixed(3) + " GeV/c²";
-                    else if (mev > 0) result.mass = mev.toFixed(3) + " MeV/c²";
-                    else result.mass = "0 (Massless)";
-                }
-
-                // 2. Electric Charge
-                if (claims.P1148 && claims.P1148[0].mainsnak.datavalue) {
-                    let charge = parseFloat(claims.P1148[0].mainsnak.datavalue.value.amount);
-                    result.charge = (charge > 0 ? "+" + charge : charge) + " e";
-                } else {
-                    result.charge = "0 e"; // Neutral fallback for particles like Neutrons
-                }
-
-                // 3. Quantum Spin
-                if (claims.P1120 && claims.P1120[0].mainsnak.datavalue) {
-                    let spinVal = claims.P1120[0].mainsnak.datavalue.value;
-                    let spinStr = spinVal.amount ? parseFloat(spinVal.amount).toString() : spinVal.toString();
-                    result.spin = spinStr.replace('+', '');
-                } else {
-                    result.spin = "0"; // Fallback for spinless particles like Higgs
-                }
-
-                // We successfully loaded a physical particle. Break the loop so it stops searching!
-                break; 
-            }
-        }
-    } catch (error) {
-        console.warn("Wikidata Engine Failed.", error);
-    }
-
-    return result;
+    return {
+        name: query.toUpperCase(),
+        mass: particleMatrix[cleanQuery]?.mass || "ERR: Not in Database",
+        charge: particleMatrix[cleanQuery]?.charge || "ERR: Unknown",
+        spin: particleMatrix[cleanQuery]?.spin || "ERR: Unknown"
+    };
 }
-
 
 
 // Global Export
