@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEM Lab - Quantum Physics</title>
+    <link rel="stylesheet" href="../css/retro-theme.css">
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <script src="../js/api-router.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="lab-header">
+            <h1 class="lab-title" style="color: #9d00ff;">PARTICLE PHYSICS // QUANTUM MECHANICS</h1>
+            <a href="../index.html" class="btn btn-secondary" style="text-decoration: none;">&lt; Back to Hub</a>
+        </header>
+
+        <section class="panel panel-active" style="margin-bottom: 25px; border-color: #9d00ff;">
+            <h2 class="panel-title" style="color: #9d00ff; border-left-color: #9d00ff;">01 // CERN & STANDARD MODEL DATABANKS</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                <strong>SMART SEARCH ACTIVE:</strong> Type any fundamental particle (e.g., Electron, Higgs Boson, Up Quark) to fetch absolute metrics and cross-reference live CERN Open Data collision records.
+            </p>
+            
+            <div class="input-group" style="margin-bottom: 20px;">
+                <button id="fetch-quantum-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; border-color: #9d00ff; color: #9d00ff;">INITIALIZE CERN UPLINK</button>
+                <input type="text" id="quantum-input" value="Higgs Boson" style="width: 100%; text-align: center; font-size: 1.1rem; padding: 10px;" placeholder="Enter particle name...">
+            </div>
+            
+            <div class="input-group">
+                <label>Latest CERN Dataset Record</label>
+                <input type="text" id="cern-out" readonly placeholder="Awaiting Search..." style="font-size: 0.8rem;">
+            </div>
+            
+            <div class="stem-grid" style="margin-top: 10px;">
+                <div class="input-group">
+                    <label>Invariant Mass (MeV/c²)</label>
+                    <input type="text" id="quantum-mass" readonly placeholder="Awaiting Search...">
+                </div>
+                <div class="input-group">
+                    <label>Electric Charge</label>
+                    <input type="text" id="quantum-charge" readonly placeholder="Awaiting Search...">
+                </div>
+            </div>
+            
+            <div class="input-group" style="margin-top: 10px;">
+                <label>Quantum Spin</label>
+                <input type="text" id="quantum-spin" readonly placeholder="Awaiting Search...">
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="panel-title" style="color: #9d00ff; border-left-color: #9d00ff;">02 // WAVEFUNCTION & SCANNER</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+                Use the MathLive keypad or scan complex quantum equations (e.g., Schrödinger equation or De Broglie wavelengths).
+            </p>
+            <math-field id="quantum-formula" virtual-keyboard-mode="manual" style="margin-bottom: 15px; font-size: 1.5rem;">
+                i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi
+            </math-field>
+            <div class="upload-container">
+                <label class="upload-zone-label" style="color: #9d00ff;">
+                    <span>[+] UPLOAD / SCAN QUANTUM DIAGRAM</span>
+                    <input type="file" id="quantum-ocr" class="hidden-file-input" accept="image/*" capture="environment">
+                </label>
+            </div>
+            <div id="quantum-status" class="status-message" style="margin-top: 10px; color: #9d00ff;"></div>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('fetch-quantum-btn').addEventListener('click', async () => {
+            const query = document.getElementById('quantum-input').value;
+            const cernBox = document.getElementById('cern-out');
+            const massBox = document.getElementById('quantum-mass');
+            const chargeBox = document.getElementById('quantum-charge');
+            const spinBox = document.getElementById('quantum-spin');
+            const btn = document.getElementById('fetch-quantum-btn');
+            
+            btn.textContent = "QUERYING CERN ARCHIVES...";
+            cernBox.value = "Fetching API...";
+            massBox.value = "Scanning...";
+            chargeBox.value = "Scanning...";
+            spinBox.value = "Scanning...";
+            
+            const data = await window.StemAPI.fetchParticleData(query);
+            
+            if (data) {
+                cernBox.value = data.cernRecord;
+                massBox.value = data.mass;
+                chargeBox.value = data.charge;
+                spinBox.value = data.spin;
+                
+                btn.textContent = "PARTICLE ISOLATED";
+                btn.style.color = "var(--accent-neon)";
+            }
+        });
+
+        document.getElementById('quantum-ocr').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const statusText = document.getElementById('quantum-status');
+            const mathField = document.getElementById('quantum-formula');
+            statusText.textContent = "SYS_STATUS: TRANSMITTING TO OCR ENGINE...";
+            statusText.style.color = "var(--accent-amber)";
+            const latexString = await window.StemAPI.scanMathImage(file);
+            if (latexString && !latexString.includes("Error")) {
+                statusText.textContent = "SYS_STATUS: WAVEFUNCTION PARSED SUCCESSFULLY.";
+                statusText.style.color = "var(--accent-neon)";
+                mathField.setValue(latexString); 
+            } else {
+                statusText.textContent = "SYS_ERROR: SCAN FAILED. CHECK IMAGE CLARITY.";
+                statusText.style.color = "var(--alert-red)";
+            }
+        });
+    </script>
+</body>
+</html>
