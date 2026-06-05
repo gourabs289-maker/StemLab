@@ -58,14 +58,12 @@ async function fetchNasaAsteroidData() {
    3. ENGINEERING: DYNAMIC API CHAIN (NIH -> MATERIALS PROJECT)
    -------------------------------------------------------------------------- */
 async function fetchMaterialProperties(query) {
-    // Default UI states
     let result = {
         formula: "ERR: Not Found", density: "ERR: Not Found",
         volume: "ERR: Not Found", weight: "ERR: Not Found", complexity: "ERR: Not Found"
     };
 
-    // --- STEP 1: NIH PUBCHEM (The Universal Translator & Chem Stats) ---
-    // This API works perfectly on the web without proxies.
+    // --- STEP 1: NIH PUBCHEM ---
     let targetSymbol = query.trim();
     const pubchemUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(query.trim())}/property/MolecularFormula,MolecularWeight,Complexity/JSON`;
     
@@ -77,17 +75,48 @@ async function fetchMaterialProperties(query) {
                 result.formula = pubData.PropertyTable.Properties[0].MolecularFormula;
                 result.weight = pubData.PropertyTable.Properties[0].MolecularWeight;
                 result.complexity = pubData.PropertyTable.Properties[0].Complexity;
-                
-                // We successfully translated the word (e.g. "Platinum") into the symbol (e.g. "Pt")
                 targetSymbol = result.formula; 
             }
         }
     } catch (e) { console.warn("PubChem engine missed."); }
 
-    // Backup formatter just in case PubChem is offline
     if (targetSymbol.length <= 2) {
         targetSymbol = targetSymbol.charAt(0).toUpperCase() + targetSymbol.slice(1).toLowerCase();
     }
+
+    // --- STEP 2: MATERIALS PROJECT ---
+    // Added &_fields=density,volume to force the API to send the physical metrics
+    const mpUrl = `https://api.materialsproject.org/materials/summary/?formula=${targetSymbol}&_fields=density,volume`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(mpUrl)}`;
+
+    try {
+        let mpResponse;
+        try {
+            mpResponse = await fetch(proxyUrl, { headers: { "X-API-KEY": API_CONFIG.MATERIALS_KEY } });
+            if (!mpResponse.ok) throw new Error("Proxy Blocked");
+        } catch (proxyErr) {
+            mpResponse = await fetch(mpUrl, { headers: { "X-API-KEY": API_CONFIG.MATERIALS_KEY } });
+        }
+
+        if (mpResponse.ok) {
+            const mpData = await mpResponse.json();
+            if (mpData.data && mpData.data.length > 0) {
+                // Smart scan: Loop through the returned crystal variants and grab the first one that has real physical data
+                const validMaterial = mpData.data.find(m => m.density !== undefined && m.density !== null) || mpData.data[0];
+                
+                // Assign the valid data, or explicitly state if the API is entirely missing the physical data for this element
+                result.density = validMaterial.density !== undefined && validMaterial.density !== null ? validMaterial.density : "Data Missing in API";
+                result.volume = validMaterial.volume !== undefined && validMaterial.volume !== null ? validMaterial.volume : "Data Missing in API";
+            }
+        }
+    } catch (e) { 
+        console.warn("Materials Project blocked by web browser CORS."); 
+    }
+
+    if (result.formula === "ERR: Not Found" && result.weight === "ERR: Not Found" && result.density === "ERR: Not Found") return null;
+    return result;
+}
+
 
     // --- STEP 2: MATERIALS PROJECT (Physics Stats) ---
     // Uses the perfect symbol pulled from Step 1.
