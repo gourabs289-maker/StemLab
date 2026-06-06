@@ -77,7 +77,7 @@
         <section class="panel" style="margin-bottom: 25px; border-color: var(--accent-neon);">
             <h2 class="panel-title" style="color: var(--accent-neon); border-left-color: var(--accent-neon);">02 // PREDICTIVE REACTION BUILDER</h2>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
-                Build equations left-to-right. The engine will calculate the result.
+                Build equations left-to-right. The engine will calculate the result. Leave Qty blank for auto-balancing.
             </p>
 
             <datalist id="chemical-dictionary">
@@ -95,13 +95,17 @@
 
             <div id="sketch-builder-container" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px;">
                 
-                <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
-                <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
+                    <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+                </div>
 
                 <span class="plus-divider" style="color: var(--text-secondary); font-weight: bold; font-size: 1.2rem;">+</span>
 
-                <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
-                <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <input type="number" class="chem-qty sketch-input" placeholder="Qty" min="1" style="width: 60px; text-align: center;">
+                    <input type="text" class="chem-name sketch-input" list="chemical-dictionary" placeholder="Select..." style="width: 140px;">
+                </div>
 
                 <button id="sketch-add-btn" class="btn" style="padding: 8px 15px; border: 1px dashed #555; background: transparent; color: #aaa; font-weight: bold;">ADD +</button>
                 <button id="sketch-enter-btn" class="btn btn-primary" style="padding: 8px 20px; font-weight: bold;">ENTER</button>
@@ -190,8 +194,12 @@
         addBtn.addEventListener('click', () => {
             const plus = document.createElement('span');
             plus.className = 'plus-divider';
-            plus.style.cssText = 'color: var(--text-secondary); font-weight: bold; font-size: 1.2rem;';
+            plus.style.cssText = 'color: var(--text-secondary); font-weight: bold; font-size: 1.2rem; margin: 0 5px;';
             plus.textContent = '+';
+
+            // Wrap the newly added fields for mobile layout
+            const flexWrapper = document.createElement('div');
+            flexWrapper.style.cssText = 'display: flex; gap: 5px; align-items: center;';
 
             const qty = document.createElement('input');
             qty.type = 'number';
@@ -207,9 +215,11 @@
             name.placeholder = 'Select...';
             name.style.cssText = 'width: 140px;';
 
+            flexWrapper.appendChild(qty);
+            flexWrapper.appendChild(name);
+
             builderContainer.insertBefore(plus, addBtn);
-            builderContainer.insertBefore(qty, addBtn);
-            builderContainer.insertBefore(name, addBtn);
+            builderContainer.insertBefore(flexWrapper, addBtn);
         });
 
         // "ENTER" Button Logic
@@ -357,4 +367,3 @@
     </script>
 </body>
 </html>
-
